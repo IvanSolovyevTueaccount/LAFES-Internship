@@ -1,35 +1,33 @@
-data = read_rls_log("E201_COM3.LOG");
+%data = read_rls_log("E201_COM3.LOG");
 
-plot(data.Timestamp, data.Value);
-xlabel("Time");
-ylabel("Measurement");
-grid on;
+% plot(data.Timestamp, data.Value);
+% xlabel("Time");
+% ylabel("Measurement");
+% grid on;
 
+ts = read_rls_log_timeseries("E201_COM3.LOG");
+save("rls_data.mat", "ts");
 
-function data = read_rls_log(filename)
-    % Reads RLS-style semicolon log:
-    % COM3;DD.MM.YYYY;HH:MM:SS;VALUE
+function ts = read_rls_log_timeseries(filename)
 
-    % Read as text
-    opts = delimitedTextImportOptions("Delimiter",";", ...
-                                      "NumVariables",4, ...
-                                      "ConsecutiveDelimitersRule","join");
-
+    opts = delimitedTextImportOptions("Delimiter",";", "NumVariables",4);
     opts.VariableNames = ["Port", "Date", "Time", "Value"];
     opts.VariableTypes = ["string", "string", "string", "double"];
+    opts.ExtraColumnsRule = "ignore";
+    opts.EmptyLineRule = "read";
+    opts.ConsecutiveDelimitersRule = "join";
 
     T = readtable(filename, opts);
 
-    % Combine date + time into MATLAB datetime
-    T.Timestamp = datetime(strcat(T.Date, " ", T.Time), ...
-                           'InputFormat','dd.MM.yyyy HH:mm:ss');
+    % Remove rows where Value is NaN
+    T = T(~isnan(T.Value), :);
+    values = T.Value;
 
-    % Sort just in case
-    T = sortrows(T, "Timestamp");
+    % Create a simple time vector starting at 0, increment by 1
+    time_numeric = 0:(length(values)-1);
 
-    % Reorder columns
-    data = T(:, ["Timestamp", "Value", "Port"]);
+    % Create timeseries
+    ts = timeseries(values, time_numeric);
+    ts.TimeInfo.Units = 'seconds';  % or 'arbitrary units'
 
-    % Show first few lines
-    disp(head(data));
 end
