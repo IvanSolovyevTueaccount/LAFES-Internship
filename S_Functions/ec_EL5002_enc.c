@@ -137,7 +137,7 @@ static void mdlOutputs(SimStruct *S, int_T tid)
             ivalue[ichan] = (int32_t)(raw - 0x100000000ULL);
         }
 
-        *y[ichan] = (real_T)ivalue[ichan];
+        y[ichan] = (real_T)ivalue[ichan];
     }
 
 #endif
