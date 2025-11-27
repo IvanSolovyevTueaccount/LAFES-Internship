@@ -129,6 +129,7 @@ static void mdlOutputs(SimStruct *S, int_T tid)
     ivalue[0] = psfgd->in_EL5002_->invalue1;
     ivalue[1] = psfgd->in_EL5002_->invalue2;
 
+    int ichan;
     for(ichan=0;ichan<2;++ichan){
         uint32_t raw = (uint32_t)ivalue[ichan];
         
