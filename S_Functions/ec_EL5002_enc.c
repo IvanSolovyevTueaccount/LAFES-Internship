@@ -4,6 +4,7 @@
         (c) Rene' van de Molengraft, 2007
         (c) Ferry Schoenmakers, 2019
         (c) Danny Hameeteman, 2025 Created EL5002 config based on EL5101
+        (c) Stijn Michiels, 2025 Changed mdlOutputs to read second encoder correctly
 
         Outputs: y[0] = SSI output 1
                  y[1] = SSI output 2
@@ -121,23 +122,21 @@ static void mdlOutputs(SimStruct *S, int_T tid)
     psfun_global_data psfgd;
     psfgd = (psfun_global_data) ptrRwrk;
 
-    real_T *y[2];
-	y[0] = ssGetOutputPortRealSignal(S,0);
-    y[1] = ssGetOutputPortRealSignal(S,1);
+    real_T *y = ssGetOutputPortRealSignal(S,0);
 
     /* read enc channel */
-    long int ivalue[2];
-    int ichan;
-
+    int32_t ivalue[2];
     ivalue[0] = psfgd->in_EL5002_->invalue1;
     ivalue[1] = psfgd->in_EL5002_->invalue2;
 
     for(ichan=0;ichan<2;++ichan){
-        if (ivalue[ichan]>2147483648) {
-            ivalue[ichan]=-(4294967296-ivalue[ichan]);
+        uint32_t raw - (uint32_t)ivalue[chan];
+        
+        if (raw & 0x80000000) {
+            ivalue[ichan] = int32_t(raw - 0x100000000ULL);
         }
 
-        *y[ichan] = (double) ivalue[ichan];
+        *y[ichan] = (real_T)ivalue[ichan];
     }
 
 #endif
