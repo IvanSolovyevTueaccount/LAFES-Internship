@@ -48,8 +48,10 @@ sys_ss = ss(A,Bss,Css,Dss);
 %%
 G = tf(sys_ss);         
 
-G1 = G(1);               
-G2 = G(2);               
+G_d=c2d(G, 250, 'tustin')
+
+G1 = G_d(1);               
+G2 = G_d(2);               
 
 disp('G1(s) = X1(s) / tau(s):');
 G1
