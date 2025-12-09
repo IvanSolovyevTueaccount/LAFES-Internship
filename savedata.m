@@ -1,6 +1,6 @@
-u = simoutu;      % input noise
-y = simouty;      % system output
-fs = 1 / mean(diff(t));    % sample frequency
+u = out.simoutu;      % input noise
+y = out.simouty;      % system output
+fs = 250;    % sample frequency
 
 N = length(u);
 u = u(:);
