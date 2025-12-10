@@ -1,14 +1,17 @@
-u = out.simoutu;      % input noise
-y = out.simouty;      % system output
+clear all
+load('u.mat');
+u = ans;
+
+load('y.mat');
+y=ans;
 fs = 250;    % sample frequency
 
 N = length(u);
-u = u(:);
-y = y(:);
 
-w = hann(N);
-u_win = u .* w;
-y_win = y .* w;
+
+w = transpose(hann(N));
+u_win = u(2,:) .* w;
+y_win = y(2,:) .* w;
 
 U = fft(u_win);
 Y = fft(y_win);
