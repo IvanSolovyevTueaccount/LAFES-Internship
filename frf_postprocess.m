@@ -4,7 +4,7 @@ load("position1.mat")
 load("position2.mat")
 
 t = torque(1,:); 
-u = input(2,:);
+u = input(2,:) * 3.36 / 1000;
 y = [position1(2,:); position2(2,:)];
 nOutputs = size(y,1);
 
@@ -17,8 +17,8 @@ t = t(idx_start:end);
 u = u(idx_start:end);
 y = y(:, idx_start:end);
 
-nfft = 2^nextpow2(length(u)/3); 
-noverlap = round(0.8*nfft); 
+nfft = 2^nextpow2(length(u)/128);
+noverlap = 0.5*nfft;
 window = hann(nfft);
 
 [Suu,f] = pwelch(u, window, noverlap, nfft, fs);
@@ -64,8 +64,8 @@ for k = 1:nOutputs
     title('FRFs: Position / Torque')
     
     subplot(2,1,2)
-    semilogx(f, wrapTo180(angle(G(k,:))*180/pi)); hold on
-    ylabel('Phase [deg]'); xlabel('Frequency [Hz]'); grid on
+    semilogx(f, wrapTo180(unwrap(angle(G(k,:)))*180/pi)); hold on;
+    ylabel('Phase [rad]'); xlabel('Frequency [Hz]'); grid on
 
 end
 legend('Position1','Position2')
