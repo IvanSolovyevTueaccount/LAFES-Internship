@@ -4,7 +4,7 @@ load("position1.mat")
 load("position2.mat")
 
 t = torque(1,:); 
-u = input(2,:) * 3.36 / 1000;
+u = input(2,:);
 y = [position1(2,:); position2(2,:)];
 nOutputs = size(y,1);
 
