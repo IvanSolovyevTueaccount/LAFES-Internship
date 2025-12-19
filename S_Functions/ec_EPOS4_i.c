@@ -3,12 +3,11 @@
 
         (c) Ferry Schoenmakers, 2022
 
-	Outputs:
-		y[0] = Statusword
-		y[1] = Error code
-		y[2] = Torque actual value
-		y[3] = Velocity actual value
-        y[4] = Position actual value
+    // Outputs:
+    // y[0] = Statusword
+    // y[1] = Position actual value
+    // y[2] = Velocity actual value
+    // y[3] = Torque actual value
 
 	// Inputs: 
 	// 	u[0] = Controlword
@@ -25,7 +24,7 @@
 
 #define NSTATES         0
 // #define NINPUTS         1
-#define NOUTPUTS        2
+#define NOUTPUTS        4
 #define NPARAMS         2
 
 #define LINK_ID         ssGetSFcnParam(S,0)
@@ -38,8 +37,10 @@
 
 typedef struct PACKED
 { 
-	uint16_t	statusword;
-    int32_t 	actual_value;
+    uint16_t statusword;        
+    int32_t  position_actual;   
+    int32_t  velocity_actual;   
+    int16_t  torque_actual;     
 } in_EPOS4t;
 
 /* define global data struct */
@@ -201,7 +202,9 @@ static void mdlOutputs(SimStruct *S, int_T tid)
     real_T *y = ssGetOutputPortRealSignal(S,0);      
 
     y[0] = (double) psfgd->in_EPOS4_->statusword;
-	y[1] = (double) psfgd->in_EPOS4_->actual_value;
+    y[1] = (double) psfgd->in_EPOS4_->position_actual;
+    y[2] = (double) psfgd->in_EPOS4_->velocity_actual;
+    y[3] = (double) psfgd->in_EPOS4_->torque_actual;
 #endif
 }
 /*************************************************************************/
