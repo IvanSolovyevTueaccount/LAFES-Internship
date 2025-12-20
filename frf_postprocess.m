@@ -5,7 +5,7 @@ load("position2.mat")
 
 t = torque(1,:); 
 u = input(2,:);
-y = [position1(2,:); position2(2,:)];
+y = [position1(2,:); position2(2,:); position2(2,:) - position1(2,:)];
 nOutputs = size(y,1);
 
 dt = mean(diff(t));
@@ -42,7 +42,7 @@ plot(t, u/1000);
 for k = 1:nOutputs
     plot(t, y(k,:));
 end
-legend()
+legend(["input" "x1" "x2" "x2-x1"])
 
 figure(2); clf; hold on
 for k = 1:nOutputs
@@ -52,7 +52,7 @@ grid on
 xlabel('Frequency [Hz]');
 ylabel('Coherence');
 ylim([0 1]);
-legend('Position1','Position2');
+legend('Position1','Position2','Difference');
 title('Coherence between Torque Input and Measured Positions');
 
 figure(3);
@@ -68,4 +68,4 @@ for k = 1:nOutputs
     ylabel('Phase [rad]'); xlabel('Frequency [Hz]'); grid on
 
 end
-legend('Position1','Position2')
+legend('Position1','Position2','Difference')
