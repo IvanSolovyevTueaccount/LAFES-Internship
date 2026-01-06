@@ -24,12 +24,12 @@ Gexp = Gexp(idx,:);
 % Initial parameter guess
 
 m1 = 80e-3*40e-3*20e-3*2700;
-m2 = 0.2;
+m2 = 0.5;
 J0 = 2e-4;
-k1 = 4e7;
+k1 = 3e7;
 k2 = 1e3;
-c1 = 0.1;
-c2 = 0.1;
+c1 = 0.01;
+c2 = 0.01;
 
 % Normalisation
 
@@ -37,12 +37,13 @@ scale.m  = 1;        % kg
 scale.k  = 1e5;      % N/m
 scale.w  = sqrt(scale.k/scale.m);
 scale.c  = 2 * scale.m * scale.w;        % Ns/m
+scale.J  = 1e-4;
 
 w_n = w / scale.w;
 
-theta_n = [m2/scale.m, k2/scale.k, c1/scale.c, c2/scale.c];
-lb = [0.1/scale.m, 1e2/scale.k, 0, 0];
-ub = [0.5/scale.m, 1e5/scale.k, 100/scale.c, 100/scale.c];
+theta_n = [m2/scale.m, J0/scale.J, k2/scale.k, c1/scale.c, c2/scale.c, 1e2/scale.c, 1e2/scale.c, 1e2/scale.c ];
+lb = [0.1/scale.m, 0, 1e2/scale.k, 0, 0, 0, 0, 0];
+ub = [2/scale.m, 1/scale.J, 1e5/scale.k, inf/scale.c, 1e3/scale.c, 1e3/scale.c, 1e3/scale.c, 1e3/scale.c];
 
 % Optimization
 opts = optimoptions('lsqnonlin', ...
@@ -62,8 +63,8 @@ disp(theta_hat)
 Gfit = frf_model(theta_hat);
 
 % Show found thetas
-names = {'m2','k2','c1','c2'};
-theta_phys = theta_hat .* [scale.m, scale.k, scale.c, scale.c ];
+names = {'m2','J0','k2','c1','c2','fric_1','fric_2','fric_3'};
+theta_phys = theta_hat .* [ scale.m, scale.J, scale.k, scale.c, scale.c scale.c, scale.c, scale.c];
 
 fprintf('\nFitted physical parameters:\n');
 for i = 1:numel(theta_phys)
@@ -139,26 +140,27 @@ function G = frf_model(theta)
     scale = evalin('base','scale');
     
     m1 = evalin('base','m1');
-    k1 = evalin('base', 'k1');
-    J0 = evalin('base', 'J0');
-
     m2 = theta(1) * scale.m;
-    k2 = theta(2) * scale.k;
-    c1 = theta(3) * scale.c;
-    c2 = theta(4) * scale.c;
+    k1 = evalin('base', 'k1');
+    J0 = theta(2) * scale.J;
 
-    c_m1 = 0.01 * scale.c;  % small damping on m1
-    c_m2 = 0.01 * scale.c;  % small damping on m2
-    c_J0 = 0.01 * scale.c;  % small rotational damping
+    k2 = theta(3) * scale.k;
+
+    c1 = theta(4) * scale.c;
+    c2 = theta(5) * scale.c;
+
+    fric_m1 = theta(6) * scale.c;  % small damping on m1
+    fric_m2 = theta(7) * scale.c;  % small damping on m2
+    fric_J0 = theta(8) * scale.c;  % small rotational damping
 
     % Matrices
     M = [ m1      0        0;
           0       m2       0;
           0       0   J0/r^2 ];
     
-    C = [ c1+c2+c_m1   -c2    -c1;
-         -c2      c2+c_m2      0;
-         -c1      0       c1+c_J0 ];
+    C = [ c1+c2+fric_m1   -c2    -c1;
+         -c2      c2+fric_m2      0;
+         -c1      0       c1+fric_J0 ];
     
     K = [ k1+k2   -k2    -k1;
          -k2      k2      0;
