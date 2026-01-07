@@ -8,7 +8,7 @@ clc
 
 % Frequency
 w = 2*pi*f(:);          % rad/s
-Gexp = G(1:2,:)';
+Gexp = transpose(G(1:2,:));
 r = 0.038;
 
 % Limit frequencies
@@ -123,10 +123,15 @@ function r = residual(theta)
 
     % Frequency-dependent weighting
     W = 1 ./ max(abs(Gexp), 1e-12);
+
+    % Complex residual (real + imaginary parts)
+    r_complex = (Gmod - Gexp) .* W;
     
     r = [
-        (abs(Gmod(:,1)) - abs(Gexp(:,1))) ./ max(abs(Gexp(:,1)),1e-12);
-        (abs(Gmod(:,2)) - abs(Gexp(:,2))) ./ max(abs(Gexp(:,2)),1e-12);
+        real(r_complex(:,1));
+        imag(r_complex(:,1));
+        real(r_complex(:,2));
+        imag(r_complex(:,2))
     ];
 end
 
