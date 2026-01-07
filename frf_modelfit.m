@@ -1,11 +1,59 @@
-%% FRF PARAMETER FITTING SCRIPT
-% Assumes the following variables already exist in workspace:
-%   f        : Nx1 frequency vector [Hz]
-%   G        : NxM experimental complex FRF
+%% FRF
+load("input.mat")
+load("position1.mat")
+load("position2.mat")
 
-clearvars -except f G
-clc
+t = input(1,:); 
+u = input(2,:);
+x1 = position1(2,:);
+x2 = position2(2,:);
 
+dt = mean(diff(t));
+fs = 1/dt;
+
+idx_start = find(t >= 10, 1, 'first');
+
+t  = t(idx_start:end);
+u  = u(idx_start:end);
+x1 = x1(idx_start:end);
+x2 = x2(idx_start:end);
+
+% Time delay correction
+Nd_x1 = 5;   % delay of motor encoder [samples]
+Nd_x2 = 3;   % delay of linear encoder [samples]
+
+% Apply delays independently
+x1 = x1(Nd_x1+1:end);
+x2 = x2(Nd_x2+1:end);
+
+% Trim to shortest remaining signal
+N = min([length(x1), length(x2), length(u), length(t)]);
+x1 = x1(1:N);
+x2 = x2(1:N);
+u  = u(1:N);
+t  = t(1:N);
+
+% Define outputs for FRF
+y = [x1; x2; x2 - x1];
+
+nOutputs = size(y,1);
+
+nfft = 2^nextpow2(length(u)/128);
+noverlap = 0.5*nfft;
+window = hann(nfft);
+
+[Suu,f] = pwelch(u, window, noverlap, nfft, fs);
+
+G = zeros(nOutputs,length(f));
+
+for k = 1:nOutputs
+    [Syy,~] = pwelch(y(k,:), window, noverlap, nfft, fs);
+    [Syu,~] = cpsd(y(k,:), u, window, noverlap, nfft, fs);
+
+    G(k,:) = Syu ./ Suu;
+end
+
+% ========== FITTING ==========
 % Frequency
 w = 2*pi*f(:);          % rad/s
 Gexp = transpose(G(1:2,:));
