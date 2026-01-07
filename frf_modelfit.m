@@ -75,42 +75,52 @@ end
 G0 = frf_model(theta_n);
 figure(1);
 clf
+title('Initial value FRF')
 subplot(2,2,1)
-semilogy(f, abs(Gexp(:,1)),f, abs(G0(:,1)));
+semilogx(f, 20*log10(abs(Gexp(:,1))), f, 20*log10(abs(G0(:,1))));
 grid on
 legend('x1 - meas','x1 - init')
+xlabel('Frequency [Hz]')
 subplot(2,2,2)
-semilogy(f, abs(Gexp(:,2)),f, abs(G0(:,2)));
+semilogx(f, 20*log10(abs(Gexp(:,2))), f, 20*log10(abs(G0(:,2))));
 grid on
 legend('x2 - meas', 'x2 - init')
+xlabel('Frequency [Hz]')
 subplot(2,2,3)
-plot(f, angle(Gexp(:,1)),f, angle(G0(:,1)));
+semilogx(f, wrapTo180(unwrap(angle(Gexp(:,1)))*180/pi),f, wrapTo180(unwrap(angle(G0(:,1)))*180/pi));
 grid on
 legend('x1 - meas','x1 - init')
+xlabel('Frequency [Hz]')
 subplot(2,2,4)
-plot(f, angle(Gexp(:,2)),f, angle(G0(:,2)));
+semilogx(f, wrapTo180(unwrap(angle(Gexp(:,2)))*180/pi),f, wrapTo180(unwrap(angle(G0(:,2)))*180/pi));
 grid on
 legend('x2 - meas', 'x2 - init')
+xlabel('Frequency [Hz]')
 
 % Plot fitted results
 figure(2)
 clf
+title('Fitted values FRF')
 subplot(2,2,1)
-semilogy(f, abs(Gexp(:,1)),f, abs(Gfit(:,1)));
+semilogx(f, 20*log10(abs(Gexp(:,1))), f, 20*log10(abs(Gfit(:,1))));
 grid on
 legend('x1 - meas','x1 - fit')
+xlabel('Frequency [Hz]')
 subplot(2,2,2)
-semilogy(f, abs(Gexp(:,2)),f, abs(Gfit(:,2)));
+semilogx(f, 20*log10(abs(Gexp(:,2))), f, 20*log10(abs(Gfit(:,2))));
 grid on
 legend('x2 - meas', 'x2 - fit')
+xlabel('Frequency [Hz]')
 subplot(2,2,3)
-plot(f, angle(Gexp(:,1)),f, angle(Gfit(:,1)));
+semilogx(f, wrapTo180(unwrap(angle(Gexp(:,1)))*180/pi),f, wrapTo180(unwrap(angle(Gfit(:,1)))*180/pi));
 grid on
 legend('x1 - meas','x1 - fit')
+xlabel('Frequency [Hz]')
 subplot(2,2,4)
-plot(f, angle(Gexp(:,2)),f, angle(Gfit(:,2)));
+semilogx(f, wrapTo180(unwrap(angle(Gexp(:,2)))*180/pi), f, wrapTo180(unwrap(angle(Gfit(:,2)))*180/pi));
 grid on
 legend('x2 - meas', 'x2 - fit')
+xlabel('Frequency [Hz]')
 
 % Functions
 function r = residual(theta)
