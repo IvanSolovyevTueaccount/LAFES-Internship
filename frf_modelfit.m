@@ -1,16 +1,25 @@
-%% FRF
+% ======== Options ========
+% Frequency limits
+fmin = 1;      % Hz (adjust)
+fmax = 60;    % Hz
+
+% ======= FRF =========
+% load data
 load("input.mat")
 load("position1.mat")
 load("position2.mat")
 
+% pull data
 t = input(1,:); 
 u = input(2,:);
 x1 = position1(2,:);
 x2 = position2(2,:);
 
+% sample time
 dt = mean(diff(t));
 fs = 1/dt;
 
+% skip first 10 seconds
 idx_start = find(t >= 10, 1, 'first');
 
 t  = t(idx_start:end);
@@ -38,10 +47,12 @@ y = [x1; x2; x2 - x1];
 
 nOutputs = size(y,1);
 
+% time window for pwelch
 nfft = 2^nextpow2(length(u)/128);
 noverlap = 0.5*nfft;
 window = hann(nfft);
 
+% cross power spectral densities
 [Suu,f] = pwelch(u, window, noverlap, nfft, fs);
 
 G = zeros(nOutputs,length(f));
@@ -54,15 +65,13 @@ for k = 1:nOutputs
 end
 
 % ========== FITTING ==========
+
 % Frequency
 w = 2*pi*f(:);          % rad/s
 Gexp = transpose(G(1:2,:));
 r = 0.038;
 
-% Limit frequencies
-fmin = 1;      % Hz (adjust)
-fmax = 60;    % Hz
-
+% Apply frequency limits
 idx = f >= fmin & f <= fmax;
 
 f    = f(idx);
@@ -70,8 +79,7 @@ w    = w(idx);
 Gexp = Gexp(idx,:);
 
 % Initial parameter guess
-
-m1 = 80e-3*40e-3*20e-3*2700;
+m1 = 80e-3*40e-3*20e-3*2700; % Fixed, rest is fitted
 m2 = 0.5;
 J0 = 2e-4;
 k1 = 3e7;
@@ -79,21 +87,20 @@ k2 = 1e3;
 c1 = 0.01;
 c2 = 0.01;
 
-% Normalisation
-
+% Normalisation definitions
 scale.m  = 1;        % kg
 scale.k  = 1e5;      % N/m
 scale.w  = sqrt(scale.k/scale.m);
 scale.c  = 2 * scale.m * scale.w;        % Ns/m
 scale.J  = 1e-4;
 
+% Normalisation
 w_n = w / scale.w;
-
 theta_n = [m2/scale.m, J0/scale.J, k2/scale.k, c1/scale.c, c2/scale.c, 1e2/scale.c, 1e2/scale.c, 1e2/scale.c ];
 lb = [0.1/scale.m, 0, 1e2/scale.k, 0, 0, 0, 0, 0];
 ub = [2/scale.m, 1/scale.J, 1e5/scale.k, inf/scale.c, 1e3/scale.c, 1e3/scale.c, 1e3/scale.c, 1e3/scale.c];
 
-% Optimization
+% Optimization settings
 opts = optimoptions('lsqnonlin', ...
     'Display','iter', ...
     'MaxIterations',1000, ...
@@ -102,6 +109,7 @@ opts = optimoptions('lsqnonlin', ...
     'TypicalX', theta_n, ...
     'FiniteDifferenceStepSize', 0.01);
 
+% Run fit
 theta_hat = lsqnonlin(@residual, theta_n, lb, ub, opts);
 
 disp('Estimated parameters:')
@@ -212,9 +220,9 @@ function G = frf_model(theta)
     c1 = theta(4) * scale.c;
     c2 = theta(5) * scale.c;
 
-    fric_m1 = theta(6) * scale.c;  % small damping on m1
-    fric_m2 = theta(7) * scale.c;  % small damping on m2
-    fric_J0 = theta(8) * scale.c;  % small rotational damping
+    fric_m1 = theta(6) * scale.c;
+    fric_m2 = theta(7) * scale.c;
+    fric_J0 = theta(8) * scale.c;
 
     % Matrices
     M = [ m1      0        0;
