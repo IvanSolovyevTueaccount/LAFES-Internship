@@ -1,15 +1,19 @@
+% load data
 load("input.mat")
 load("position1.mat")
 load("position2.mat")
 
+% pull data
 t = input(1,:); 
 u = input(2,:);
 x1 = position1(2,:);
 x2 = position2(2,:);
 
+% sample time
 dt = mean(diff(t));
 fs = 1/dt;
 
+% skip first 10 seconds
 idx_start = find(t >= 10, 1, 'first');
 
 t  = t(idx_start:end);
@@ -37,11 +41,14 @@ y = [x1; x2; x2 - x1];
 
 nOutputs = size(y,1);
 
+% time window for pwelch
 nfft = 2^nextpow2(length(u)/128);
 noverlap = 0.5*nfft;
 window = hann(nfft);
 
+% cross power spectral densities
 [Suu,f] = pwelch(u, window, noverlap, nfft, fs);
+
 
 G = zeros(nOutputs,length(f));
 coh = zeros(nOutputs,length(f));
@@ -54,7 +61,7 @@ for k = 1:nOutputs
     coh(k,:) = abs(Syu).^2 ./ (Suu .* Syy);
 end
 
-
+% Raw test data
 figure(1)
 clf
 hold on
@@ -64,6 +71,7 @@ for k = 1:nOutputs
 end
 legend(["input" "x1" "x2" "x2-x1"])
 
+% Coherence
 figure(2); clf; hold on
 for k = 1:nOutputs
     semilogx(f, coh(k,:));
@@ -75,6 +83,7 @@ ylim([0 1]);
 legend('Position1','Position2','Difference');
 title('Coherence between Torque Input and Measured Positions');
 
+% FRF
 figure(3);
 clf
 for k = 1:nOutputs
