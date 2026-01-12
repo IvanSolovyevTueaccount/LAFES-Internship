@@ -79,14 +79,14 @@ w    = w(idx);
 Gexp = Gexp(idx,:);
 
 % Initial parameter guess
-m1 = 80e-3*40e-3*20e-3*2700; % Fixed, rest is fitted
+m1 = 0.5; % Fixed, rest is fitted
 m2 = 0.5;
 J0 = 2e-4;
-J1 = 2e-4;
-k1 = 3e7;
-k2 = 1e3;
-c1 = 0.01;
-c2 = 0.01;
+ms = 1;
+k_leaf_1 = 3e3;
+k_leaf_2 = 3e3;
+c_leaf_1 = 0.01;
+c_leaf_2 = 0.01;
 
 % Normalisation definitions
 scale.m  = 1;        % kg
@@ -97,9 +97,9 @@ scale.J  = 1e-4;
 
 % Normalisation
 w_n = w / scale.w;
-theta_n = [m1/scale.m, m2/scale.m, J0/scale.J, J1/scale.J, k1/scale.k, k2/scale.k, c1/scale.c, c2/scale.c ];
-lb = [0.1/scale.m, 0.1/scale.m, 0/scale.J, 0/scale.J, 1e2/scale.k, 1e2/scale.k, 0, 0 ];
-ub = [10/scale.m, 10/scale.m, 1/scale.J, 1/scale.J, 1e10/scale.k, 1e5/scale.k, inf/scale.c, 1e5/scale.c ]; 
+theta_n = [m1/scale.m, m2/scale.m, J0/scale.J, ms/scale.m, k_leaf_1/scale.k, k_leaf_2/scale.k, c_leaf_1/scale.c, c_leaf_2/scale.c ];
+lb = [0.1/scale.m, 0.1/scale.m, 0/scale.J, 0.01/scale.m, 1e2/scale.k, 1e2/scale.k, 0, 0 ];
+ub = [10/scale.m, 10/scale.m, 1/scale.J, 10/scale.J, 1e5/scale.k, 1e5/scale.k, inf/scale.c, 1e5/scale.c ]; 
 
 % Optimization settings
 opts = optimoptions('lsqnonlin', ...
@@ -214,28 +214,30 @@ function G = frf_model(theta)
     m1 = theta(1) * scale.m;
     m2 = theta(2) * scale.m;
     J0 = theta(3) * scale.J;
-    J1 = theta(4) * scale.J;
+    ms = theta(4) * scale.J;
 
-    k1 = theta(5) * scale.k;
-    k2 = theta(6) * scale.k;
+    k_belt = 1e7;
+    k_leaf_1 = theta(5) * scale.k;
+    k_leaf_2 = theta(6) * scale.k;
 
-    c1 = theta(7) * scale.c;
-    c2 = theta(8) * scale.c;
+    c_belt = 0.5;
+    c_leaf_1 = theta(7) * scale.c;
+    c_leaf_2 = theta(8) * scale.c;
 
     % Matrices
-    M = diag([ J0, m1, m2, J1]);
+    M = diag([ J0, m1, ms, m2 ]);
     
-    K = [ 2*k1*r^2,  -k1*r,     0,   -k1*r^2;
-          -k1*r,     2*k1+k2,  -k2, -k1*r;
-           0,       -k2,        k2,   0;
-         -k1*r^2,   -k1*r,      0,  2*k1*r^2 ];
+    K = [ k_belt*r^2, -k_belt*r,           0,                   0;
+         -k_belt*r,    k_belt + k_leaf_1, -k_leaf_1,            0;
+          0,          -k_leaf_1,           k_leaf_1+k_leaf_2,  -k_leaf_2;
+          0,           0,                 -k_leaf_2,            k_leaf_2 ];
     
-    C = [ 2*c1*r^2,  -c1*r,     0,   -c1*r^2;
-          -c1*r,    2*c1+c2,  -c2,  -c1*r;
-           0,       -c2,        c2,   0;
-         -c1*r^2,  -c1*r,      0,   2*c1*r^2 ];
+    C = [ c_belt*r^2, -c_belt*r,           0,                   0;
+         -c_belt*r,    c_belt + c_leaf_1, -c_leaf_1,            0;
+          0,          -c_leaf_1,           c_leaf_1+c_leaf_2,  -c_leaf_2;
+          0,           0,                 -c_leaf_2,            c_leaf_2 ];
     
-    Bgen = [ 1; 0; 0; 0 ];
+    B = [ 1; 0; 0; 0 ];
 
     n = length(w_n);
     G = zeros(n,2);
