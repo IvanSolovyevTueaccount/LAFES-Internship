@@ -1,39 +1,44 @@
 clear; clc;
 
 m1 = 0.5;          
-m2 = 0.5;  
-J0 = 2e-4;      % rotor inertia
-J1 = 1e-4;       % second pulley interia
+m2 = 0.5; 
+m_s = 1;
+J0 = 5e-4;
 r  = 0.04;
 
-k1 = 1e4; 
-c1 = 0.0000005;     
-k2 = 2e3;       
-c2 = 0.02;     
+k_belt = 1e7; 
+c_belt = 0.01;     
+k_leaf_1 = 5e3;
+k_leaf_2 = 1e3;
+c_leaf_1 = 0.5;
+c_leaf_2 = 0.5;
 
-M = diag([ J0, m1, m2, J1]);
+M = diag([ J0, m1, m_s, m2 ]);
 
-K = [ 2*k1*r^2,  -k1*r,     0,   -k1*r^2;
-      -k1*r,     2*k1+k2,  -k2, -k1*r;
-       0,       -k2,        k2,   0;
-     -k1*r^2,   -k1*r,      0,  2*k1*r^2 ];
+dofs = size(M,2);
 
-C = [ 2*c1*r^2,  -c1*r,     0,   -c1*r^2;
-      -c1*r,    2*c1+c2,  -c2,  -c1*r;
-       0,       -c2,        c2,   0;
-     -c1*r^2,  -c1*r,      0,   2*c1*r^2 ];
+K = [ k_belt*r^2, -k_belt*r,           0,                   0;
+     -k_belt*r,    k_belt + k_leaf_1, -k_leaf_1,            0;
+      0,          -k_leaf_1,           k_leaf_1+k_leaf_2,  -k_leaf_2;
+      0,           0,                 -k_leaf_2,            k_leaf_2 ];
+
+C = [ c_belt*r^2, -c_belt*r,           0,                   0;
+     -c_belt*r,    c_belt + c_leaf_1, -c_leaf_1,            0;
+      0,          -c_leaf_1,           c_leaf_1+c_leaf_2,  -c_leaf_2;
+      0,           0,                 -c_leaf_2,            c_leaf_2 ];
+
 Bgen = [ 1; 0; 0; 0 ];
 
 Minv = inv(M);
 
-A = [ zeros(4)        eye(4);
+A = [ zeros(dofs)        eye(dofs);
      -Minv * K     -Minv * C ];
 
-Bss = [ zeros(4,1);
+Bss = [ zeros(dofs,1);
         Minv * Bgen ];
 
-Css = [ 0 1 0 0  0 0 0 0;   % x1
-        0 0 1 0  0 0 0 0 ];  % x2
+Css = [ 0 1 0 0  0 0 0 0;
+        0 0 0 1  0 0 0 0 ];
 
 Dss = zeros(2,1);
 
