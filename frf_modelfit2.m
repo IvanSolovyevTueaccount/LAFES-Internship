@@ -28,8 +28,8 @@ x1 = x1(idx_start:end);
 x2 = x2(idx_start:end);
 
 % Time delay correction
-Nd_x1 = 6;   % delay of motor encoder [samples]
-Nd_x2 = 4;   % delay of linear encoder [samples]
+Nd_x1 = 7;   % delay of motor encoder [samples]
+Nd_x2 = 7;   % delay of linear encoder [samples]
 
 % Apply delays independently
 x1 = x1(Nd_x1+1:end);
@@ -64,7 +64,7 @@ for k = 1:nOutputs
     G(k,:) = Syu ./ Suu;
 end
 
-%% ========== FITTING ==========
+% ========== FITTING ==========
 
 % Frequency
 w = 2*pi*f(:);          % rad/s
@@ -191,14 +191,19 @@ function r = residual(theta)
     % Frequency-dependent weighting
     W = 1 ./ max(abs(Gexp), 1e-12);
 
-    % Complex residual (real + imaginary parts)
-    r_complex = (Gmod - Gexp) .* W;
+    mag_mod = abs(Gmod);
+    mag_exp = abs(Gexp);
+    phase_mod = angle(Gmod);
+    phase_exp = angle(Gexp);
     
+    phase_diff = mod(phase_mod - phase_exp + pi, 2*pi) - pi;
+    
+    % Residual vector
     r = [
-        real(r_complex(:,1));
-        imag(r_complex(:,1));
-        real(r_complex(:,2));
-        imag(r_complex(:,2))
+        (mag_mod(:,1) - mag_exp(:,1)) .* W(:,1);
+        phase_diff(:,1) .* W(:,1);
+        (mag_mod(:,2) - mag_exp(:,2)) .* W(:,2);
+        phase_diff(:,2) .* W(:,2);
     ];
 end
 
