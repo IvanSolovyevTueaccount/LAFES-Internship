@@ -1,7 +1,7 @@
 % ======== Options ========
 % Frequency limits
-fmin = 1;      % Hz (adjust)
-fmax = 60;    % Hz
+fmin = 2;      % Hz (adjust)
+fmax = 350;    % Hz
 
 % ======= FRF =========
 % load data
@@ -28,8 +28,8 @@ x1 = x1(idx_start:end);
 x2 = x2(idx_start:end);
 
 % Time delay correction
-Nd_x1 = 5;   % delay of motor encoder [samples]
-Nd_x2 = 3;   % delay of linear encoder [samples]
+Nd_x1 = 6;   % delay of motor encoder [samples]
+Nd_x2 = 4;   % delay of linear encoder [samples]
 
 % Apply delays independently
 x1 = x1(Nd_x1+1:end);
@@ -48,7 +48,7 @@ y = [x1; x2; x2 - x1];
 nOutputs = size(y,1);
 
 % time window for pwelch
-nfft = 2^nextpow2(length(u)/128);
+nfft = 2^nextpow2(length(u)/2^10);
 noverlap = 0.5*nfft;
 window = hann(nfft);
 
@@ -64,7 +64,7 @@ for k = 1:nOutputs
     G(k,:) = Syu ./ Suu;
 end
 
-% ========== FITTING ==========
+%% ========== FITTING ==========
 
 % Frequency
 w = 2*pi*f(:);          % rad/s
@@ -79,14 +79,14 @@ w    = w(idx);
 Gexp = Gexp(idx,:);
 
 % Initial parameter guess
-m1 = 0.5; % Fixed, rest is fitted
+m1 = 0.5;
 m2 = 0.5;
 J0 = 2e-4;
 ms = 1;
-k_leaf_1 = 3e3;
-k_leaf_2 = 3e3;
-c_leaf_1 = 0.01;
-c_leaf_2 = 0.01;
+k_leaf_1 = 1e6;
+k_leaf_2 = 5e3;
+c_leaf_1 = 100;
+c_leaf_2 = 5;
 
 % Normalisation definitions
 scale.m  = 1;        % kg
@@ -120,7 +120,7 @@ disp(theta_hat)
 Gfit = frf_model(theta_hat);
 
 % Show found thetas
-names = {'m1','m2','J0','J1','k1','k2','c1','c2'};
+names = {'m1','m2','J0','m1','k_leaf_1','k_leaf_2','c_leaf_1','c_leaf_2'};
 theta_phys = theta_hat .* [ scale.m, scale.m, scale.J, scale.J, scale.k, scale.k, scale.c, scale.c ];
 
 fprintf('\nFitted physical parameters:\n');
@@ -214,13 +214,13 @@ function G = frf_model(theta)
     m1 = theta(1) * scale.m;
     m2 = theta(2) * scale.m;
     J0 = theta(3) * scale.J;
-    ms = theta(4) * scale.J;
+    ms = theta(4) * scale.m;
 
     k_belt = 1e7;
     k_leaf_1 = theta(5) * scale.k;
     k_leaf_2 = theta(6) * scale.k;
 
-    c_belt = 0.5;
+    c_belt = 0.01;
     c_leaf_1 = theta(7) * scale.c;
     c_leaf_2 = theta(8) * scale.c;
 
@@ -246,7 +246,7 @@ function G = frf_model(theta)
         w = w_n(i)*scale.w;
         D = -w^2*M + 1i*w*C + K;
         x = D\B;
-        G(i,1) = x(1);
-        G(i,2) = x(2);
+        G(i,1) = x(2);
+        G(i,2) = x(4);
     end
 end
