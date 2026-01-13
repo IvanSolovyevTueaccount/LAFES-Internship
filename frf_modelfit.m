@@ -1,7 +1,7 @@
 % ======== Options ========
 % Frequency limits
-fmin = 1;      % Hz (adjust)
-fmax = 60;    % Hz
+fmin = 5;      % Hz (adjust)
+fmax = 100;    % Hz
 
 % ======= FRF =========
 % load data
@@ -28,8 +28,8 @@ x1 = x1(idx_start:end);
 x2 = x2(idx_start:end);
 
 % Time delay correction
-Nd_x1 = 5;   % delay of motor encoder [samples]
-Nd_x2 = 3;   % delay of linear encoder [samples]
+Nd_x1 = 7;   % delay of motor encoder [samples]
+Nd_x2 = 6;   % delay of linear encoder [samples]
 
 % Apply delays independently
 x1 = x1(Nd_x1+1:end);
@@ -48,7 +48,7 @@ y = [x1; x2; x2 - x1];
 nOutputs = size(y,1);
 
 % time window for pwelch
-nfft = 2^nextpow2(length(u)/128);
+nfft = 2^nextpow2(length(u)/2^10);
 noverlap = 0.5*nfft;
 window = hann(nfft);
 
@@ -79,26 +79,26 @@ w    = w(idx);
 Gexp = Gexp(idx,:);
 
 % Initial parameter guess
-m1 = 80e-3*40e-3*20e-3*2700; % Fixed, rest is fitted
+m1 = 0.5;
 m2 = 0.5;
 J0 = 2e-4;
-k1 = 3e7;
-k2 = 1e3;
+k1 = 1e7;
+k2 = 5e3;
 c1 = 0.01;
 c2 = 0.01;
 
 % Normalisation definitions
 scale.m  = 1;        % kg
-scale.k  = 1e5;      % N/m
+scale.k  = 1e4;      % N/m
 scale.w  = sqrt(scale.k/scale.m);
 scale.c  = 2 * scale.m * scale.w;        % Ns/m
-scale.J  = 1e-4;
+scale.J  = 1e-5;
 
 % Normalisation
 w_n = w / scale.w;
-theta_n = [m2/scale.m, J0/scale.J, k2/scale.k, c1/scale.c, c2/scale.c, 1e2/scale.c, 1e2/scale.c, 1e2/scale.c ];
-lb = [0.1/scale.m, 0, 1e2/scale.k, 0, 0, 0, 0, 0];
-ub = [2/scale.m, 1/scale.J, 1e5/scale.k, inf/scale.c, 1e3/scale.c, 1e3/scale.c, 1e3/scale.c, 1e3/scale.c];
+theta_n = [m1/scale.m, m2/scale.m, J0/scale.J, k2/scale.k, c2/scale.c ];
+lb = [0/scale.m, 0.01/scale.m, 1e-10/scale.J, 1e2/scale.k, 0 ];
+ub = [10/scale.m, 10/scale.m, 1e-2/scale.J, 1e6/scale.k, 1e3/scale.c ];
 
 % Optimization settings
 opts = optimoptions('lsqnonlin', ...
@@ -119,8 +119,8 @@ disp(theta_hat)
 Gfit = frf_model(theta_hat);
 
 % Show found thetas
-names = {'m2','J0','k2','c1','c2','fric_1','fric_2','fric_3'};
-theta_phys = theta_hat .* [ scale.m, scale.J, scale.k, scale.c, scale.c scale.c, scale.c, scale.c];
+names = {'m1','m2','J0','k2','c2'};
+theta_phys = theta_hat .* [ scale.m, scale.m, scale.J, scale.k, scale.c ];
 
 fprintf('\nFitted physical parameters:\n');
 for i = 1:numel(theta_phys)
@@ -188,16 +188,23 @@ function r = residual(theta)
     Gmod = frf_model(theta);
 
     % Frequency-dependent weighting
-    W = 1 ./ max(abs(Gexp), 1e-12);
+    W = ones(size(Gmod));
 
-    % Complex residual (real + imaginary parts)
-    r_complex = (Gmod - Gexp) .* W;
+    mag_mod = 20*log10(abs(Gmod));
+    mag_exp = 20*log10(abs(Gexp));
+    phase_mod = angle(Gmod);
+    phase_exp = angle(Gexp);
     
+    phase_diff = mod(phase_mod - phase_exp + pi, 2*pi) - pi;
+
+    phase_weight = 0.25;
+    
+    % Residual vector
     r = [
-        real(r_complex(:,1));
-        imag(r_complex(:,1));
-        real(r_complex(:,2));
-        imag(r_complex(:,2))
+        (mag_mod(:,1) - mag_exp(:,1)) .* W(:,1);
+        phase_weight * phase_diff(:,1) .* W(:,1);
+        (mag_mod(:,2) - mag_exp(:,2)) .* W(:,2);
+        phase_weight * phase_diff(:,2) .* W(:,2);
     ];
 end
 
@@ -210,36 +217,28 @@ function G = frf_model(theta)
     % Parameters
     scale = evalin('base','scale');
     
-    m1 = evalin('base','m1');
-    m2 = theta(1) * scale.m;
-    k1 = evalin('base', 'k1');
-    J0 = theta(2) * scale.J;
+    m1 = theta(1) * scale.m;
+    m2 = theta(2) * scale.m;
+    J0 = theta(3) * scale.J;
 
-    k2 = theta(3) * scale.k;
+    k_belt = evalin('base', 'k_belt');
+    c_belt = evalin('base', 'c_belt');
 
-    c1 = theta(4) * scale.c;
-    c2 = theta(5) * scale.c;
-
-    fric_m1 = theta(6) * scale.c;
-    fric_m2 = theta(7) * scale.c;
-    fric_J0 = theta(8) * scale.c;
+    k_leaf = theta(4) * scale.k;
+    c_leaf = theta(5) * scale.c;
 
     % Matrices
-    M = [ m1      0        0;
-          0       m2       0;
-          0       0   J0/r^2 ];
+    M = diag([J0 m1 m2]);
+   
+    K = [ k_belt*r^2,  -k_belt*r,        0;
+         -k_belt*r,     k_belt+k_leaf,  -k_leaf;
+          0,           -k_leaf,          k_leaf ];
+
+    C = [ c_belt*r^2,  -c_belt*r,        0;
+         -c_belt*r,     c_belt+c_leaf,  -c_leaf;
+          0,           -c_leaf,          c_leaf ];
     
-    C = [ c1+c2+fric_m1   -c2    -c1;
-         -c2      c2+fric_m2      0;
-         -c1      0       c1+fric_J0 ];
-    
-    K = [ k1+k2   -k2    -k1;
-         -k2      k2      0;
-         -k1      0       k1 ];
-    
-    B = [ 0;
-          0;
-          1e-3/r ];
+    B = [ 1; 0; 0 ];
 
     n = length(w_n);
     G = zeros(n,2);
@@ -248,7 +247,7 @@ function G = frf_model(theta)
         w = w_n(i)*scale.w;
         D = -w^2*M + 1i*w*C + K;
         x = D\B;
-        G(i,1) = x(1);
-        G(i,2) = x(2);
+        G(i,1) = x(2);
+        G(i,2) = x(3);
     end
 end
