@@ -22,6 +22,7 @@
 #define SYNC2 0x55
 
 static uint8_t rxBuf[PACKET_SIZE];
+static real_T lastOutput[OUTPUT_WIDTH] = {0};
 static int rxIndex = 0;
 static int syncState = 0;
 
@@ -99,21 +100,22 @@ static void mdlOutputs(SimStruct *S, int_T tid)
     real_T *y = ssGetOutputPortRealSignal(S,0);
     uint8_t byte;
 
-    if (fd < 0) {
-        memset(y, 0, OUTPUT_WIDTH * sizeof(real_T));
+    /* Default: output last known good packet */
+    memcpy(y, lastOutput, OUTPUT_WIDTH * sizeof(real_T));
+
+    if (fd < 0)
         return;
-    }
 
     while (read(fd, &byte, 1) == 1) {
 
         switch (syncState) {
 
-        case 0:  // wait for 0xAA
+        case 0:
             if (byte == SYNC1)
                 syncState = 1;
             break;
 
-        case 1:  // wait for 0x55
+        case 1:
             if (byte == SYNC2) {
                 syncState = 2;
                 rxIndex = 0;
@@ -122,21 +124,23 @@ static void mdlOutputs(SimStruct *S, int_T tid)
             }
             break;
 
-        case 2:  // read payload
+        case 2:
             rxBuf[rxIndex++] = byte;
             if (rxIndex == PACKET_SIZE) {
+
                 float *f = (float*)rxBuf;
                 for (int i = 0; i < OUTPUT_WIDTH; i++)
-                    y[i] = f[i];
+                    lastOutput[i] = f[i];
 
-                syncState = 0;   
-                return;          
+                syncState = 0;
+                break;   /* keep draining serial buffer */
             }
             break;
         }
     }
 #endif
 }
+
 
 /*====================*
  * mdlTerminate
