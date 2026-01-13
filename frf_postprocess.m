@@ -22,8 +22,8 @@ x1 = x1(idx_start:end);
 x2 = x2(idx_start:end);
 
 % Time delay correction
-Nd_x1 = 5;   % delay of motor encoder [samples]
-Nd_x2 = 3;   % delay of linear encoder [samples]
+Nd_x1 = 7;   % delay of motor encoder [samples]
+Nd_x2 = 5;   % delay of linear encoder [samples]
 
 % Apply delays independently
 x1 = x1(Nd_x1+1:end);
@@ -42,7 +42,7 @@ y = [x1; x2; x2 - x1];
 nOutputs = size(y,1);
 
 % time window for pwelch
-nfft = 2^nextpow2(length(u)/128);
+nfft = 2^nextpow2(length(u)/2^12);
 noverlap = 0.5*nfft;
 window = hann(nfft);
 
