@@ -19,7 +19,7 @@ static int fd = -1;          // Serial file descriptor
 static int packetSize = 24;  // Default, overridden by parameter
 static int outputWidth = 6;  // Default, overridden by parameter
 static char devicePath[256]; // Default, overridden by parameter
-static double sampleTime = 0.002; // Default sample time
+static double sampleTime = 1; // Default sample time
 
 /*====================*
  * S-function parameters
