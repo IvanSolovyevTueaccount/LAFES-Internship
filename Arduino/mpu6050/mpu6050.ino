@@ -20,10 +20,12 @@ struct IMUPacket {
 
 IMUPacket pkt;
 
+const uint8_t SYNC[2] = {0xAA, 0x55};
+
 void setup() {
   Serial.begin(460800);
   Wire.begin();
-  Wire.setClock(100000);
+  Wire.setClock(400000);  
 
   calib.accelBias[0] = 0;
   calib.accelBias[1] = 0;
@@ -39,8 +41,6 @@ void setup() {
     Serial.println(err);
     while (1);
   }
-
-  Serial.println("aX, aY, aZ, gX, gY, gZ");
 }
 
 void loop() {
@@ -55,8 +55,9 @@ void loop() {
   pkt.gx = gyro.gyroX;
   pkt.gy = gyro.gyroY;
   pkt.gz = gyro.gyroZ;
-  
+
+  Serial.write(SYNC, 2); 
   Serial.write((uint8_t*)&pkt, sizeof(pkt));
 
-  delayMicroseconds(2000);  // 500 Hz
+  delayMicroseconds(1250);  // 800 Hz
 }
