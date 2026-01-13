@@ -9,8 +9,19 @@ calData calib;
 AccelData accel;
 GyroData gyro;
 
+struct IMUPacket {
+  float ax;
+  float ay;
+  float az;
+  float gx;
+  float gy;
+  float gz;
+};
+
+IMUPacket pkt;
+
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(460800);
   Wire.begin();
   Wire.setClock(100000);
 
@@ -38,16 +49,14 @@ void loop() {
   imu.getAccel(&accel);
   imu.getGyro(&gyro);
   
-  // CSV output
-  // accel: m/s^2
-  // gyro: rad/s
-  Serial.print(accel.accelX); Serial.print(",");
-  Serial.print(accel.accelY); Serial.print(",");
-  Serial.print(accel.accelZ); Serial.print(",");
-  Serial.print(gyro.gyroX);   Serial.print(",");
-  Serial.print(gyro.gyroY);   Serial.print(",");
-  Serial.println(gyro.gyroZ);
-
-  delayMicroseconds(1000); // ~1000 Hz
+  pkt.ax = accel.accelX;
+  pkt.ay = accel.accelY;
+  pkt.az = accel.accelZ;
+  pkt.gx = gyro.gyroX;
+  pkt.gy = gyro.gyroY;
+  pkt.gz = gyro.gyroZ;
   
+  Serial.write((uint8_t*)&pkt, sizeof(pkt));
+
+  delayMicroseconds(2000);  // 500 Hz
 }

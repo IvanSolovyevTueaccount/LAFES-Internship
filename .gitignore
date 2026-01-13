@@ -5,3 +5,9 @@ LAFES_saveas.m
 LAFES.slxc
 LAFES.mat
 LAFES
+/FRF results
+position1.mat
+position2.mat
+reference.mat
+torque.mat
+input.mat
