@@ -134,49 +134,48 @@ static void mdlStart(SimStruct *S)
  *====================*/
 static void mdlOutputs(SimStruct *S, int_T tid)
 {
+#ifndef MATLAB_MEX_FILE
     real_T *y = ssGetOutputPortRealSignal(S,0);
 
-#ifndef MATLAB_MEX_FILE
-    uint8_t byte;
-
-    /* Default: output last known good packet */
+    // Default: output last known good packet
     memcpy(y, lastOutput, OUTPUT_WIDTH * sizeof(real_T));
 
-    if (fd < 0) return;
+    if (fd < 0)
+        return;
 
-    while (read(fd, &byte, 1) == 1) {
-        switch (syncState) {
-        case 0:
-            if (byte == SYNC1) syncState = 1;
-            break;
-        case 1:
-            if (byte == SYNC2) {
-                syncState = 2;
-                rxIndex = 0;
-            } else {
-                syncState = 0;
-            }
-            break;
-        case 2:
-            rxBuf[rxIndex++] = byte;
-            if (rxIndex == PACKET_SIZE) {
-                float *f = (float*)rxBuf;
-                for (int i = 0; i < OUTPUT_WIDTH; i++)
-                    lastOutput[i] = f[i];
+    // ===== REPLACE old single-byte loop with this =====
+    ssize_t n = read(fd, &rxBuf[rxIndex], PACKET_SIZE - rxIndex);
+    if (n > 0) {
+        for (ssize_t i = 0; i < n; i++) {
+            uint8_t byte = rxBuf[rxIndex + i];
+            switch (syncState) {
+                case 0: // wait for SYNC1
+                    if (byte == SYNC1) syncState = 1;
+                    break;
 
-                syncState = 0;  // reset sync
-                break;
+                case 1: // wait for SYNC2
+                    if (byte == SYNC2) { syncState = 2; rxIndex = 0; }
+                    else { syncState = 0; }
+                    break;
+
+                case 2: // read payload
+                    rxBuf[rxIndex++] = byte;
+                    if (rxIndex == PACKET_SIZE) {
+                        float *f = (float*)rxBuf;
+                        for (int i = 0; i < OUTPUT_WIDTH; i++)
+                            lastOutput[i] = f[i];
+
+                        // reset for next packet
+                        syncState = 0;
+                        rxIndex = 0;
+                    }
+                    break;
             }
-            break;
         }
     }
-
-#else
-    /* On Windows/MEX just output zeros or test data */
-    for (int i=0;i<OUTPUT_WIDTH;i++)
-        y[i] = 0.0;
 #endif
 }
+
 
 /*====================*
  * mdlTerminate
