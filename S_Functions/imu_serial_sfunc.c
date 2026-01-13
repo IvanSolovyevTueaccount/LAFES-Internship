@@ -9,9 +9,16 @@
 #include "simstruc.h"
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
+
+/*====================*
+ * Linux-only includes
+ *====================*/
+#ifndef MATLAB_MEX_FILE
 #include <fcntl.h>
 #include <unistd.h>
-#include <string.h>
+#include <termios.h>
+#endif
 
 /*====================*
  * Constants
@@ -21,20 +28,48 @@
 #define SYNC1 0xAA
 #define SYNC2 0x55
 
+/*====================*
+ * Globals
+ *====================*/
 static uint8_t rxBuf[PACKET_SIZE];
 static real_T lastOutput[OUTPUT_WIDTH] = {0};
 static int rxIndex = 0;
 static int syncState = 0;
 
-/*====================*
- * Globals
- *====================*/
-static int fd = -1;
 static char devicePath[256] = "/dev/ttyUSB0";
 static real_T sampleTime = 1.0;
 
+#ifndef MATLAB_MEX_FILE
+static int fd = -1;
+
+static int setupSerial(int fd)
+{
+    struct termios tio;
+
+    if (tcgetattr(fd, &tio) != 0)
+        return -1;
+
+    cfmakeraw(&tio);
+
+    cfsetispeed(&tio, B460800);
+    cfsetospeed(&tio, B460800);
+
+    tio.c_cflag |= (CLOCAL | CREAD);
+    tio.c_cflag &= ~CRTSCTS;     // no flow control
+    tio.c_cflag &= ~CSTOPB;      // 1 stop bit
+    tio.c_cflag &= ~PARENB;      // no parity
+    tio.c_cflag &= ~CSIZE;
+    tio.c_cflag |= CS8;           // 8 data bits
+
+    tio.c_cc[VMIN]  = 0;          // non-blocking read
+    tio.c_cc[VTIME] = 0;
+
+    return tcsetattr(fd, TCSANOW, &tio);
+}
+#endif
+
 /*====================*
- * Parameters
+ * S-function parameters
  *====================*/
 #define PARAM_DEVICE     0
 #define PARAM_SAMPLETIME 1
@@ -49,10 +84,7 @@ static void mdlInitializeSizes(SimStruct *S)
     if (ssGetNumSFcnParams(S) != ssGetSFcnParamsCount(S)) return;
 
 #ifdef MATLAB_MEX_FILE
-    /* Read parameters EARLY */
-    mxGetString(ssGetSFcnParam(S, PARAM_DEVICE),
-                devicePath, sizeof(devicePath));
-
+    mxGetString(ssGetSFcnParam(S, PARAM_DEVICE), devicePath, sizeof(devicePath));
     sampleTime = mxGetScalar(ssGetSFcnParam(S, PARAM_SAMPLETIME));
     if (sampleTime <= 0.0) sampleTime = 1.0;
 #endif
@@ -65,7 +97,6 @@ static void mdlInitializeSizes(SimStruct *S)
     ssSetOutputPortWidth(S, 0, OUTPUT_WIDTH);
 
     ssSetNumSampleTimes(S, 1);
-    ssSetNumPWork(S, 0);   /* NO PWORK NEEDED ANYMORE */
 }
 
 /*====================*
@@ -84,9 +115,16 @@ static void mdlInitializeSampleTimes(SimStruct *S)
 static void mdlStart(SimStruct *S)
 {
 #ifndef MATLAB_MEX_FILE
-    fd = open(devicePath, O_RDONLY | O_NONBLOCK);
+    fd = open(devicePath, O_RDONLY | O_NOCTTY | O_NONBLOCK);
     if (fd < 0) {
         perror("imu_serial_sfunc: open failed");
+        return;
+    }
+
+    if (setupSerial(fd) != 0) {
+        perror("imu_serial_sfunc: termios setup failed");
+        close(fd);
+        fd = -1;
     }
 #endif
 }
@@ -96,25 +134,21 @@ static void mdlStart(SimStruct *S)
  *====================*/
 static void mdlOutputs(SimStruct *S, int_T tid)
 {
-#ifndef MATLAB_MEX_FILE
     real_T *y = ssGetOutputPortRealSignal(S,0);
+
+#ifndef MATLAB_MEX_FILE
     uint8_t byte;
 
     /* Default: output last known good packet */
     memcpy(y, lastOutput, OUTPUT_WIDTH * sizeof(real_T));
 
-    if (fd < 0)
-        return;
+    if (fd < 0) return;
 
     while (read(fd, &byte, 1) == 1) {
-
         switch (syncState) {
-
         case 0:
-            if (byte == SYNC1)
-                syncState = 1;
+            if (byte == SYNC1) syncState = 1;
             break;
-
         case 1:
             if (byte == SYNC2) {
                 syncState = 2;
@@ -123,24 +157,26 @@ static void mdlOutputs(SimStruct *S, int_T tid)
                 syncState = 0;
             }
             break;
-
         case 2:
             rxBuf[rxIndex++] = byte;
             if (rxIndex == PACKET_SIZE) {
-
                 float *f = (float*)rxBuf;
                 for (int i = 0; i < OUTPUT_WIDTH; i++)
                     lastOutput[i] = f[i];
 
-                syncState = 0;
-                break;   /* keep draining serial buffer */
+                syncState = 0;  // reset sync
+                break;
             }
             break;
         }
     }
+
+#else
+    /* On Windows/MEX just output zeros or test data */
+    for (int i=0;i<OUTPUT_WIDTH;i++)
+        y[i] = 0.0;
 #endif
 }
-
 
 /*====================*
  * mdlTerminate
