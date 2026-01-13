@@ -1,9 +1,6 @@
 /*
-        imu_serial_sfunc
-
-        (c) Stijn Michiels, 2026
-
-        Outputs: 0..width-1: IMU values (ax ay az gx gy gz ...)
+    imu_serial_sfunc
+    (c) Stijn Michiels, 2026
 */
 
 #define S_FUNCTION_NAME  imu_serial_sfunc
@@ -15,109 +12,117 @@
 #include <unistd.h>
 #include <string.h>
 
-static int fd = -1;          // Serial file descriptor
-static int packetSize = 24;  // Default, overridden by parameter
-static int outputWidth = 6;  // Default, overridden by parameter
-static char devicePath[256]; // Default, overridden by parameter
-static double sampleTime = 1; // Default sample time
+/*====================*
+ * Constants
+ *====================*/
+#define OUTPUT_WIDTH 6
+#define PACKET_SIZE 24
 
 /*====================*
- * S-function parameters
+ * Globals
+ *====================*/
+static int fd = -1;
+static char devicePath[256] = "/dev/ttyUSB0";
+static real_T sampleTime = 1.0;
+
+/*====================*
+ * Parameters
  *====================*/
 #define PARAM_DEVICE     0
-#define PARAM_PACKETSIZE 1
-#define PARAM_OUTWIDTH   2
-#define PARAM_SAMPLETIME 3
-#define NUM_PARAMS       4
+#define PARAM_SAMPLETIME 1
+#define NUM_PARAMS       2
 
+/*====================*
+ * mdlInitializeSizes
+ *====================*/
 static void mdlInitializeSizes(SimStruct *S)
 {
     ssSetNumSFcnParams(S, NUM_PARAMS);
-    if(ssGetNumSFcnParams(S) != ssGetSFcnParamsCount(S)) return;
+    if (ssGetNumSFcnParams(S) != ssGetSFcnParamsCount(S)) return;
 
-    ssSetNumContStates(S,0);
-    ssSetNumDiscStates(S,0);
+#ifdef MATLAB_MEX_FILE
+    /* Read parameters EARLY */
+    mxGetString(ssGetSFcnParam(S, PARAM_DEVICE),
+                devicePath, sizeof(devicePath));
 
-    if(!ssSetNumInputPorts(S,0)) return;
+    sampleTime = mxGetScalar(ssGetSFcnParam(S, PARAM_SAMPLETIME));
+    if (sampleTime <= 0.0) sampleTime = 1.0;
+#endif
 
-    if(!ssSetNumOutputPorts(S,1)) return;
-    ssSetOutputPortWidth(S,0,outputWidth); // temporary, adjusted in mdlStart
+    ssSetNumContStates(S, 0);
+    ssSetNumDiscStates(S, 0);
+    ssSetNumInputPorts(S, 0);
 
-    ssSetNumSampleTimes(S,1);
+    ssSetNumOutputPorts(S, 1);
+    ssSetOutputPortWidth(S, 0, OUTPUT_WIDTH);
+
+    ssSetNumSampleTimes(S, 1);
+    ssSetNumPWork(S, 0);   /* NO PWORK NEEDED ANYMORE */
 }
 
-/*==================*
+/*====================*
  * Sample times
- *==================*/
+ *====================*/
 static void mdlInitializeSampleTimes(SimStruct *S)
 {
-    ssSetSampleTime(S,0,sampleTime);
-    ssSetOffsetTime(S,0,0.0);
+    ssSetSampleTime(S, 0, sampleTime);
+    ssSetOffsetTime(S, 0, 0.0);
 }
 
-/*==================*
+/*====================*
  * mdlStart
- *==================*/
+ *====================*/
 #define MDL_START
 static void mdlStart(SimStruct *S)
 {
 #ifndef MATLAB_MEX_FILE
-    // ----- read parameters -----
-    const mxArray *mxDevice = ssGetSFcnParam(S, PARAM_DEVICE);
-    const mxArray *mxPacket = ssGetSFcnParam(S, PARAM_PACKETSIZE);
-    const mxArray *mxWidth  = ssGetSFcnParam(S, PARAM_OUTWIDTH);
-    const mxArray *mxSample = ssGetSFcnParam(S, PARAM_SAMPLETIME);
-
-    if(mxDevice && mxDevice->mxIsChar){
-        strncpy(devicePath, mxArrayToString(mxDevice), sizeof(devicePath)-1);
-        devicePath[sizeof(devicePath)-1] = '\0';
-    } else {
-        strncpy(devicePath, "/dev/ttyUSB0", sizeof(devicePath)-1);
-    }
-
-    if(mxPacket) packetSize = (int) mxGetScalar(mxPacket);
-    if(mxWidth)  outputWidth = (int) mxGetScalar(mxWidth);
-    if(mxSample) sampleTime = mxGetScalar(mxSample);
-
-    // Update output port width dynamically
-    ssSetOutputPortWidth(S,0,outputWidth);
-
-    // ----- open serial port -----
     fd = open(devicePath, O_RDONLY | O_NONBLOCK);
-    if(fd < 0){
-        perror("Failed to open serial port");
+    if (fd < 0) {
+        perror("imu_serial_sfunc: open failed");
     }
 #endif
 }
 
-/*==================*
+/*====================*
  * mdlOutputs
- *==================*/
+ *====================*/
 static void mdlOutputs(SimStruct *S, int_T tid)
 {
 #ifndef MATLAB_MEX_FILE
-    float buffer[outputWidth];
-    int bytesRead = read(fd, buffer, packetSize);
-    if(bytesRead == packetSize){
-        real_T *y = ssGetOutputPortRealSignal(S,0);
-        for(int i=0;i<outputWidth;i++){
+    real_T *y = ssGetOutputPortRealSignal(S,0);
+
+    if (fd < 0) {
+        memset(y, 0, OUTPUT_WIDTH * sizeof(real_T));
+        return;
+    }
+
+    float buffer[OUTPUT_WIDTH];
+    int n = read(fd, buffer, PACKET_SIZE);
+
+    if (n == PACKET_SIZE) {
+        for (int i = 0; i < OUTPUT_WIDTH; i++)
             y[i] = buffer[i];
-        }
+    } else {
+        memset(y, 0, OUTPUT_WIDTH * sizeof(real_T));
     }
 #endif
 }
 
-/*==================*
+/*====================*
  * mdlTerminate
- *==================*/
+ *====================*/
 static void mdlTerminate(SimStruct *S)
 {
 #ifndef MATLAB_MEX_FILE
-    if(fd >= 0){
+    if (fd >= 0) {
         close(fd);
         fd = -1;
     }
 #endif
 }
 
+#ifdef MATLAB_MEX_FILE
 #include "simulink.c"
+#else
+#include "cg_sfun.h"
+#endif
