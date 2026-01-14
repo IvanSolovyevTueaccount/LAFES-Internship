@@ -1,7 +1,7 @@
 % ======== Options ========
 % Frequency limits
-fmin = 5;      % Hz (adjust)
-fmax = 100;    % Hz
+fmin = 1;      % Hz (adjust)
+fmax = 80;    % Hz
 
 % ======= FRF =========
 % load data
@@ -82,30 +82,30 @@ Gexp = Gexp(idx,:);
 m1 = 0.5;
 m2 = 0.5;
 J0 = 2e-4;
-k1 = 1e7;
-k2 = 5e3;
-c1 = 0.01;
-c2 = 0.01;
+k_belt = 1e7;
+k_leaf = 5e3;
+c_belt = 0.01;
+c_leaf = 0.01;
 
 % Normalisation definitions
 scale.m  = 1;        % kg
-scale.k  = 1e4;      % N/m
+scale.k  = 1e7;      % N/m
 scale.w  = sqrt(scale.k/scale.m);
 scale.c  = 2 * scale.m * scale.w;        % Ns/m
-scale.J  = 1e-5;
+scale.J  = 1e-4;
 
 % Normalisation
 w_n = w / scale.w;
-theta_n = [m1/scale.m, m2/scale.m, J0/scale.J, k2/scale.k, c2/scale.c ];
-lb = [0/scale.m, 0.01/scale.m, 1e-10/scale.J, 1e2/scale.k, 0 ];
-ub = [10/scale.m, 10/scale.m, 1e-2/scale.J, 1e6/scale.k, 1e3/scale.c ];
+theta_n = [m1/scale.m, m2/scale.m, J0/scale.J, k_belt/scale.k, c_belt/scale.c, k_leaf/scale.k, c_leaf/scale.c ];
+lb = [0/scale.m, 0.01/scale.m, 1e-5/scale.J, 1e2/scale.k, 0, 1e3/scale.k, 0 ];
+ub = [10/scale.m, 10/scale.m, 1e-2/scale.J, inf/scale.k, 1e3/scale.c, 1e6/scale.k, 1e3/scale.c ];
 
 % Optimization settings
 opts = optimoptions('lsqnonlin', ...
     'Display','iter', ...
     'MaxIterations',1000, ...
-    'FunctionTolerance',1e-12, ...
-    'StepTolerance',1e-12, ...
+    'FunctionTolerance',1e-20, ...
+    'StepTolerance',1e-20, ...
     'TypicalX', theta_n, ...
     'FiniteDifferenceStepSize', 0.01);
 
@@ -119,8 +119,8 @@ disp(theta_hat)
 Gfit = frf_model(theta_hat);
 
 % Show found thetas
-names = {'m1','m2','J0','k2','c2'};
-theta_phys = theta_hat .* [ scale.m, scale.m, scale.J, scale.k, scale.c ];
+names = {'m1','m2','J0','k_belt','c_belt','k_leaf','c_leaf'};
+theta_phys = theta_hat .* [ scale.m, scale.m, scale.J, scale.k, scale.c, scale.k, scale.c];
 
 fprintf('\nFitted physical parameters:\n');
 for i = 1:numel(theta_phys)
@@ -197,7 +197,7 @@ function r = residual(theta)
     
     phase_diff = mod(phase_mod - phase_exp + pi, 2*pi) - pi;
 
-    phase_weight = 0.25;
+    phase_weight = 0.5;
     
     % Residual vector
     r = [
@@ -221,11 +221,11 @@ function G = frf_model(theta)
     m2 = theta(2) * scale.m;
     J0 = theta(3) * scale.J;
 
-    k_belt = evalin('base', 'k_belt');
-    c_belt = evalin('base', 'c_belt');
+    k_belt = theta(4) * scale.k;
+    c_belt = theta(5) * scale.c;
 
-    k_leaf = theta(4) * scale.k;
-    c_leaf = theta(5) * scale.c;
+    k_leaf = theta(6) * scale.k;
+    c_leaf = theta(7) * scale.c;
 
     % Matrices
     M = diag([J0 m1 m2]);
