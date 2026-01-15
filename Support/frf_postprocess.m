@@ -42,7 +42,7 @@ y = [x1; x2; x2 - x1];
 nOutputs = size(y,1);
 
 % time window for pwelch
-nfft = 2^nextpow2(length(u)/2^12);
+nfft = 2^nextpow2(length(u)/2^10);
 noverlap = 0.5*nfft;
 window = hann(nfft);
 

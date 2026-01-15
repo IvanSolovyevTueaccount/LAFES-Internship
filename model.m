@@ -3,10 +3,10 @@ clear; clc;
 
 m1 = 0.5;          
 m2 = 0.5;          
-k1 = 70000;        
-c1 = 0.1;          
+k1 = 5e7;        
+c1 = 0;          
 k2 = 1000;         
-c2 = 0.1;         
+c2 = 0;         
 J0  = 1.53e-4;      
 r  = 0.04;         
 
@@ -48,10 +48,10 @@ sys_ss = ss(A,Bss,Css,Dss);
 %%
 G = tf(sys_ss);         
 
-G_d=c2d(G, 250, 'tustin')
+G_d=c2d(G, 1/250, 'tustin')
 
-G1 = G_d(1);               
-G2 = G_d(2);               
+G1 = G(1);               
+G2 = G(2);               
 
 disp('G1(s) = X1(s) / tau(s):');
 G1
@@ -59,5 +59,6 @@ G1
 disp('G2(s) = X2(s) / tau(s):');
 G2
 
-% bode(G1, G2); legend('x1/tau','x2/tau');
+figure()
+bode(G1, G2); legend('x1/tau','x2/tau');
 
