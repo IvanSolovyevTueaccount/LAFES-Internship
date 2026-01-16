@@ -59,6 +59,6 @@ G1
 disp('G2(s) = X2(s) / tau(s):');
 G2
 
-figure()
-bode(G1, G2); legend('x1/tau','x2/tau');
+% figure()
+% bode(G1, G2); legend('x1/tau','x2/tau');
 
