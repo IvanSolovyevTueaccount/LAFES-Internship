@@ -108,31 +108,33 @@ else
     frfLabel = answer{1};
 end
 
-figure(10);
+outputNames = {'x1','x2','x2 - x1'};
 
-k = 1; % Which frf to show?
-
-% Create figure only once
-if isempty(findobj(gcf,'Type','axes'))
-    clf
+for k = 1:nOutputs
+    figure(10+k);
+    
+    % Create figure only once
+    if isempty(findobj(gcf,'Type','axes'))
+        clf
+    end
+    
+    subplot(2,1,1)
+    semilogx(f,20*log10(abs(G(k,:))), ...
+        'DisplayName', frfLabel);
+    hold on
+    ylabel('Magnitude [dB]');
+    grid on
+    title(['FRF comparison: ' outputNames{k} ' / Torque'])
+    
+    legend('show','Location','best')
+    
+    subplot(2,1,2)
+    semilogx(f, wrapTo180(unwrap(angle(G(k,:)))*180/pi), ...
+        'DisplayName', frfLabel);
+    hold on
+    ylabel('Phase [deg]');
+    xlabel('Frequency [Hz]');
+    grid on
+    
+    legend('show','Location','best')
 end
-
-subplot(2,1,1)
-semilogx(f,20*log10(abs(G(k,:))), ...
-    'DisplayName', frfLabel);
-hold on
-ylabel('Magnitude [dB]');
-grid on
-title('FRF comparison:')
-
-legend('show','Location','best')
-
-subplot(2,1,2)
-semilogx(f, wrapTo180(unwrap(angle(G(k,:)))*180/pi), ...
-    'DisplayName', frfLabel);
-hold on
-ylabel('Phase [deg]');
-xlabel('Frequency [Hz]');
-grid on
-
-legend('show','Location','best')
