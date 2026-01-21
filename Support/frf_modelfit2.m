@@ -88,17 +88,17 @@ coh_trim  = transpose(coh(:,idx));
 % Initial parameter guess
 m1 = 0.5;
 m2 = 0.5;
-J0 = 1e-4;
-k_b = 1e6;
+J0 = 3e-4;
+k_b = 5e5;
 k_l = 5e3;
-c_b = 1;
-c_l = 1;
+c_b = 10;
+c_l = 5;
 
 % Normalisation definitions
 scale.m  = 1;        % kg
-scale.k  = 1e5;      % N/m
+scale.k  = 1e4;      % N/m
 scale.w  = sqrt(scale.k/scale.m);
-scale.c  = 2 * scale.m * scale.w;        % Ns/m
+scale.c  = 1e1;        % Ns/m
 scale.J  = 1e-4;
 
 % Normalisation
@@ -141,22 +141,22 @@ title('Initial value FRF')
 subplot(2,2,1)
 semilogx(f, 20*log10(abs(Gexp(:,1))), f, 20*log10(abs(G0(:,1))));
 grid on
-legend('x1 - meas','x1 - init')
+legend('x1 - meas','x1 - init', 'Location', 'best')
 xlabel('Frequency [Hz]')
 subplot(2,2,2)
 semilogx(f, 20*log10(abs(Gexp(:,2))), f, 20*log10(abs(G0(:,2))));
 grid on
-legend('x2 - meas', 'x2 - init')
+legend('x2 - meas', 'x2 - init', 'Location', 'best')
 xlabel('Frequency [Hz]')
 subplot(2,2,3)
 semilogx(f, wrapTo180(unwrap(angle(Gexp(:,1)))*180/pi),f, wrapTo180(unwrap(angle(G0(:,1)))*180/pi));
 grid on
-legend('x1 - meas','x1 - init')
+legend('x1 - meas','x1 - init', 'Location', 'best')
 xlabel('Frequency [Hz]')
 subplot(2,2,4)
 semilogx(f, wrapTo180(unwrap(angle(Gexp(:,2)))*180/pi),f, wrapTo180(unwrap(angle(G0(:,2)))*180/pi));
 grid on
-legend('x2 - meas', 'x2 - init')
+legend('x2 - meas', 'x2 - init', 'Location', 'best')
 xlabel('Frequency [Hz]')
 
 % Plot fitted results
@@ -166,23 +166,31 @@ title('Fitted values FRF')
 subplot(2,2,1)
 semilogx(f, 20*log10(abs(Gexp(:,1))), f, 20*log10(abs(Gfit(:,1))));
 grid on
-legend('x1 - meas','x1 - fit')
+legend('x1 - meas','x1 - fit', 'Location', 'best')
 xlabel('Frequency [Hz]')
+ylabel('Magnitude [dB]')
+title('x1/tau')
 subplot(2,2,2)
 semilogx(f, 20*log10(abs(Gexp(:,2))), f, 20*log10(abs(Gfit(:,2))));
 grid on
-legend('x2 - meas', 'x2 - fit')
+legend('x2 - meas', 'x2 - fit', 'Location', 'best')
 xlabel('Frequency [Hz]')
+ylabel('Magnitude [dB]')
+title('x2/tau')
 subplot(2,2,3)
 semilogx(f, wrapTo180(unwrap(angle(Gexp(:,1)))*180/pi),f, wrapTo180(unwrap(angle(Gfit(:,1)))*180/pi));
 grid on
-legend('x1 - meas','x1 - fit')
+legend('x1 - meas','x1 - fit', 'Location', 'best')
 xlabel('Frequency [Hz]')
+ylabel('Magnitude [deg]')
+title('x1/tau')
 subplot(2,2,4)
 semilogx(f, wrapTo180(unwrap(angle(Gexp(:,2)))*180/pi), f, wrapTo180(unwrap(angle(Gfit(:,2)))*180/pi));
 grid on
-legend('x2 - meas', 'x2 - fit')
+legend('x2 - meas', 'x2 - fit', 'Location', 'best')
 xlabel('Frequency [Hz]')
+ylabel('Magnitude [deg]')
+title('x2/tau')
 
 % Functions
 function r = residual(theta)
@@ -195,9 +203,10 @@ function r = residual(theta)
 
     % Coherence-dependent weighting
     epsc = 0.05;
+    coh_adj = max(coh, epsc);
     
-    Wmag   = sqrt(max(coh, epsc));      % gentle
-    Wphase = max(coh, epsc).^1.5;       % strong
+    Wmag   = 1    * coh_adj.^1.0;
+    Wphase = 0.2  * coh_adj.^0.2;      
 
     mag_mod   = 20*log10(abs(Gmod));
     mag_exp   = 20*log10(abs(Gexp));
@@ -205,7 +214,7 @@ function r = residual(theta)
     phase_exp = angle(Gexp);
     
     phase_diff = mod(phase_mod - phase_exp + pi, 2*pi) - pi;
-    
+
     r = [
         (mag_mod(:,1) - mag_exp(:,1)) .* Wmag(:,1);
         phase_diff(:,1) .* Wphase(:,1);
