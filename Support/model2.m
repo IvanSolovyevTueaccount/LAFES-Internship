@@ -1,33 +1,28 @@
 clear; clc;
 
-m1 = 0.5;          
-m2 = 0.5; 
-m_s = 1;
-J0 = 5e-4;
+m1 = 0.4;          
+m2 = 0.75; 
+J0 = 4e-4;
 r  = 0.04;
 
-k_belt = 1e7; 
-c_belt = 0.01;     
-k_leaf_1 = 5e3;
-k_leaf_2 = 1e3;
-c_leaf_1 = 0.5;
-c_leaf_2 = 0.5;
+k_b = 6e5; 
+c_b = 6.5;     
+k_l = 7e3;
+c_l = 10;
 
-M = diag([ J0, m1, m_s, m2 ]);
+M = diag([ J0/r^2, m1, m2 ]);
 
 dofs = size(M,2);
 
-K = [ k_belt*r^2, -k_belt*r,           0,                   0;
-     -k_belt*r,    k_belt + k_leaf_1, -k_leaf_1,            0;
-      0,          -k_leaf_1,           k_leaf_1+k_leaf_2,  -k_leaf_2;
-      0,           0,                 -k_leaf_2,            k_leaf_2 ];
+K = [ k_b  -k_b          0                  
+     -k_b   k_b + k_l   -k_l
+      0    -k_l          k_l ];
 
-C = [ c_belt*r^2, -c_belt*r,           0,                   0;
-     -c_belt*r,    c_belt + c_leaf_1, -c_leaf_1,            0;
-      0,          -c_leaf_1,           c_leaf_1+c_leaf_2,  -c_leaf_2;
-      0,           0,                 -c_leaf_2,            c_leaf_2 ];
+C = [ c_b  -c_b          0                  
+     -c_b   c_b + c_l   -c_l
+      0    -c_l          c_l ];
 
-Bgen = [ 1; 0; 0; 0 ];
+B = [ 1/(2*r); 0; 0 ];
 
 Minv = inv(M);
 
@@ -35,10 +30,10 @@ A = [ zeros(dofs)        eye(dofs);
      -Minv * K     -Minv * C ];
 
 Bss = [ zeros(dofs,1);
-        Minv * Bgen ];
+        Minv * B ];
 
-Css = [ 0 1 0 0  0 0 0 0;
-        0 0 0 1  0 0 0 0 ];
+Css = [ 1 0 0  0 0 0;
+        0 0 1  0 0 0 ];
 
 Dss = zeros(2,1);
 

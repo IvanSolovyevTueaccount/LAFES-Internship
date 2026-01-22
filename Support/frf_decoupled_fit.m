@@ -90,15 +90,15 @@ m1 = 0.5;
 m2 = 0.5;
 J0 = 1e-4;
 k_b = 1e6;
-k_l = 5e3;
+k_l = 1e3;
 c_b = 1;
 c_l = 1;
 
 % Normalisation definitions
 scale.m  = 1;        % kg
-scale.k  = 1e5;      % N/m
+scale.k  = 1e4;      % N/m
 scale.w  = sqrt(scale.k/scale.m);
-scale.c  = 2 * scale.m * scale.w;        % Ns/m
+scale.c  = 1e1;        % Ns/m
 scale.J  = 1e-4;
 
 % Normalisation
@@ -115,18 +115,39 @@ opts = optimoptions('lsqnonlin', ...
     'StepTolerance',1e-12, ...
     'FiniteDifferenceStepSize', 0.01);
 
-% Run fit
-theta_hat = lsqnonlin(@residual, theta_n, lb, ub, opts);
+% Step 1 fitting
+theta_n_step1 = theta_n;
+theta_n_step1(6:7)= 1e-3;
 
-disp('Estimated parameters:')
-disp(theta_hat)
+lb_step1 = lb;
+ub_step1 = ub;
+lb_step1(6:7) = theta_n_step1(6:7);
+ub_step1(6:7) = theta_n_step1(6:7);
 
-% Compute fitted FRF
-Gfit = frf_model(theta_hat);
+theta_hat_step1 = lsqnonlin(@residual_MK, theta_n_step1, lb_step1, ub_step1, opts);
+
+disp('Step 1: Estimated M, J, K')
+disp(theta_hat_step1)
+
+% Compute fitted FRF after step 1
+Gfit_step1 = frf_model(theta_hat_step1);
+
+% Setup for step 2
+theta_n_step2 = theta_hat_step1;
+lb_step2 = theta_n_step2;
+ub_step2 = theta_n_step2;
+
+% Only allow damping to change
+lb_step2(6:7) = 0;
+ub_step2(6:7) = 1e3;
+
+theta_hat_step2 = lsqnonlin(@residual_C, theta_n_step2, lb_step2, ub_step2, opts);
+
+Gfit_step2 = frf_model(theta_hat_step2);
 
 % Show found thetas
 names = {'m1','m2','J0','k_b','k_l','c_b','c_l'};
-theta_phys = theta_hat .* [ scale.m, scale.m, scale.J, scale.k, scale.k, scale.c, scale.c ];
+theta_phys = theta_hat_step2 .* [ scale.m, scale.m, scale.J, scale.k, scale.k, scale.c, scale.c ];
 
 fprintf('\nFitted physical parameters:\n');
 for i = 1:numel(theta_phys)
@@ -141,22 +162,22 @@ title('Initial value FRF')
 subplot(2,2,1)
 semilogx(f, 20*log10(abs(Gexp(:,1))), f, 20*log10(abs(G0(:,1))));
 grid on
-legend('x1 - meas','x1 - init')
+legend('y1 - meas','y1 - init', 'Location', 'best')
 xlabel('Frequency [Hz]')
 subplot(2,2,2)
 semilogx(f, 20*log10(abs(Gexp(:,2))), f, 20*log10(abs(G0(:,2))));
 grid on
-legend('x2 - meas', 'x2 - init')
+legend('x2 - meas', 'x2 - init', 'Location', 'best')
 xlabel('Frequency [Hz]')
 subplot(2,2,3)
 semilogx(f, wrapTo180(unwrap(angle(Gexp(:,1)))*180/pi),f, wrapTo180(unwrap(angle(G0(:,1)))*180/pi));
 grid on
-legend('x1 - meas','x1 - init')
+legend('y1 - meas','y1 - init', 'Location', 'best')
 xlabel('Frequency [Hz]')
 subplot(2,2,4)
 semilogx(f, wrapTo180(unwrap(angle(Gexp(:,2)))*180/pi),f, wrapTo180(unwrap(angle(G0(:,2)))*180/pi));
 grid on
-legend('x2 - meas', 'x2 - init')
+legend('x2 - meas', 'x2 - init', 'Location', 'best')
 xlabel('Frequency [Hz]')
 
 % Plot fitted results
@@ -164,53 +185,131 @@ figure(2)
 clf
 title('Fitted values FRF')
 subplot(2,2,1)
-semilogx(f, 20*log10(abs(Gexp(:,1))), f, 20*log10(abs(Gfit(:,1))));
+semilogx(f, 20*log10(abs(Gexp(:,1))), f, 20*log10(abs(Gfit_step1(:,1))));
 grid on
-legend('x1 - meas','x1 - fit')
+legend('y1 - meas','y1 - fit', 'Location', 'best')
 xlabel('Frequency [Hz]')
+ylabel('Magnitude [dB]')
+title('x1/tau')
 subplot(2,2,2)
-semilogx(f, 20*log10(abs(Gexp(:,2))), f, 20*log10(abs(Gfit(:,2))));
+semilogx(f, 20*log10(abs(Gexp(:,2))), f, 20*log10(abs(Gfit_step1(:,2))));
 grid on
-legend('x2 - meas', 'x2 - fit')
+legend('x2 - meas', 'x2 - fit', 'Location', 'best')
 xlabel('Frequency [Hz]')
+ylabel('Magnitude [dB]')
+title('x2/tau')
 subplot(2,2,3)
-semilogx(f, wrapTo180(unwrap(angle(Gexp(:,1)))*180/pi),f, wrapTo180(unwrap(angle(Gfit(:,1)))*180/pi));
+semilogx(f, wrapTo180(unwrap(angle(Gexp(:,1)))*180/pi),f, wrapTo180(unwrap(angle(Gfit_step1(:,1)))*180/pi));
 grid on
-legend('x1 - meas','x1 - fit')
+legend('y1 - meas','y1 - fit', 'Location', 'best')
 xlabel('Frequency [Hz]')
+ylabel('Magnitude [deg]')
+title('x1/tau')
 subplot(2,2,4)
-semilogx(f, wrapTo180(unwrap(angle(Gexp(:,2)))*180/pi), f, wrapTo180(unwrap(angle(Gfit(:,2)))*180/pi));
+semilogx(f, wrapTo180(unwrap(angle(Gexp(:,2)))*180/pi), f, wrapTo180(unwrap(angle(Gfit_step1(:,2)))*180/pi));
 grid on
-legend('x2 - meas', 'x2 - fit')
+legend('x2 - meas', 'x2 - fit', 'Location', 'best')
 xlabel('Frequency [Hz]')
+ylabel('Magnitude [deg]')
+title('x2/tau')
+
+
+% Plot fitted results
+figure(3)
+clf
+title('Fitted values FRF')
+subplot(2,2,1)
+semilogx(f, 20*log10(abs(Gexp(:,1))), f, 20*log10(abs(Gfit_step2(:,1))));
+grid on
+legend('y1 - meas','y1 - fit', 'Location', 'best')
+xlabel('Frequency [Hz]')
+ylabel('Magnitude [dB]')
+title('x1/tau')
+subplot(2,2,2)
+semilogx(f, 20*log10(abs(Gexp(:,2))), f, 20*log10(abs(Gfit_step2(:,2))));
+grid on
+legend('x2 - meas', 'x2 - fit', 'Location', 'best')
+xlabel('Frequency [Hz]')
+ylabel('Magnitude [dB]')
+title('x2/tau')
+subplot(2,2,3)
+semilogx(f, wrapTo180(unwrap(angle(Gexp(:,1)))*180/pi),f, wrapTo180(unwrap(angle(Gfit_step2(:,1)))*180/pi));
+grid on
+legend('y1 - meas','y1 - fit', 'Location', 'best')
+xlabel('Frequency [Hz]')
+ylabel('Magnitude [deg]')
+title('x1/tau')
+subplot(2,2,4)
+semilogx(f, wrapTo180(unwrap(angle(Gexp(:,2)))*180/pi), f, wrapTo180(unwrap(angle(Gfit_step2(:,2)))*180/pi));
+grid on
+legend('x2 - meas', 'x2 - fit', 'Location', 'best')
+xlabel('Frequency [Hz]')
+ylabel('Magnitude [deg]')
+title('x2/tau')
 
 % Functions
-function r = residual(theta)
 
-    % Pull workspace variables
+function r = residual_MK(theta)
     Gexp = evalin('base','Gexp');
-    coh = evalin('base', 'coh_trim');
+    coh = evalin('base','coh_trim');
+    epsc = 0.05;
+
+    theta(6:7) = 1e-3;  % fix damping small
 
     Gmod = frf_model(theta);
 
-    % Coherence-dependent weighting
-    epsc = 0.05;
-    
-    Wmag   = sqrt(max(coh, epsc));      % gentle
-    Wphase = max(coh, epsc).^1.5;       % strong
+    % Find resonance points
+    [~, idx_peaks1] = findpeaks(abs(Gexp(:,1)), 'MinPeakProminence', 0.05*max(abs(Gexp(:,1))));
+    [~, idx_peaks2] = findpeaks(abs(Gexp(:,2)), 'MinPeakProminence', 0.05*max(abs(Gexp(:,2))));
+    idx_peaks = unique([idx_peaks1; idx_peaks2]);
 
-    mag_mod   = 20*log10(abs(Gmod));
-    mag_exp   = 20*log10(abs(Gexp));
+    % ±20% around peaks
+    bw_factor = 0.2;
+    peak_idx = false(size(Gexp,1),1);
+    f = evalin('base','f');
+    for ip = idx_peaks'
+        fpeak = f(ip);
+        peak_idx = peak_idx | (f >= fpeak*(1-bw_factor) & f <= fpeak*(1+bw_factor));
+    end
+
+    mag_mod = 20*log10(abs(Gmod(peak_idx,:)));
+    mag_exp = 20*log10(abs(Gexp(peak_idx,:)));
+    W = max(coh(peak_idx,:), epsc);
+
+    r = [
+        (mag_mod(:,1) - mag_exp(:,1)) .* W(:,1);
+        (mag_mod(:,2) - mag_exp(:,2)) .* W(:,2);
+    ];
+end
+
+
+function r = residual_C(theta)
+    % Pull variables
+    Gexp = evalin('base','Gexp');
+    coh = evalin('base','coh_trim');
+
+    % Fix M, J, K
+    theta_hat_step1 = evalin('base','theta_hat_step1');
+    theta(1:5) = theta_hat_step1(1:5);
+
+    Gmod = frf_model(theta);
+
+    epsc = 0.05;
+    W = max(coh, epsc);
+
+    mag_mod = 20*log10(abs(Gmod));
+    mag_exp = 20*log10(abs(Gexp));
     phase_mod = angle(Gmod);
     phase_exp = angle(Gexp);
-    
+
     phase_diff = mod(phase_mod - phase_exp + pi, 2*pi) - pi;
-    
+
+    % Weighting: magnitude and phase for damping
     r = [
-        (mag_mod(:,1) - mag_exp(:,1)) .* Wmag(:,1);
-        phase_diff(:,1) .* Wphase(:,1);
-        (mag_mod(:,2) - mag_exp(:,2)) .* Wmag(:,2);
-        phase_diff(:,2) .* Wphase(:,2);
+        (mag_mod(:,1) - mag_exp(:,1)) .* W(:,1);
+        (mag_mod(:,2) - mag_exp(:,2)) .* W(:,2);
+        0.5 * phase_diff(:,1) .* W(:,1);
+        0.5 * phase_diff(:,2) .* W(:,2);
     ];
 end
 

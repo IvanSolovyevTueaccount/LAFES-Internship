@@ -1,7 +1,7 @@
 % ======== Options ========
 % Frequency limits
-fmin = 1;      % Hz (adjust)
-fmax = 80;    % Hz
+fmin = 2;      % Hz (adjust)
+fmax = 500;    % Hz
 
 % ======= FRF =========
 % load data
@@ -10,7 +10,7 @@ load("position1.mat")
 load("position2.mat")
 
 % pull data
-t = input(1,:); 
+t = input(1,:);
 u = input(2,:);
 x1 = position1(2,:);
 x2 = position2(2,:);
@@ -20,12 +20,17 @@ dt = mean(diff(t));
 fs = 1/dt;
 
 % skip first 10 seconds
-idx_start = find(t >= 10, 1, 'first');
 
-t  = t(idx_start:end);
-u  = u(idx_start:end);
-x1 = x1(idx_start:end);
-x2 = x2(idx_start:end);
+time_min = 10;
+time_max = 8000;
+
+idx_start = find(t >= time_min, 1, 'first');
+idx_end = find(t >= min(time_max,t(end)), 1, 'first');
+
+t  = t(idx_start:idx_end);
+u  = u(idx_start:idx_end);
+x1 = x1(idx_start:idx_end);
+x2 = x2(idx_start:idx_end);
 
 % Time delay correction
 Nd_x1 = 7;   % delay of motor encoder [samples]
@@ -62,6 +67,7 @@ for k = 1:nOutputs
     [Syu,~] = cpsd(y(k,:), u, window, noverlap, nfft, fs);
 
     G(k,:) = Syu ./ Suu;
+    coh(k,:) = abs(Syu).^2 ./ (Suu .* Syy);
 end
 
 % ========== FITTING ==========
@@ -77,36 +83,36 @@ idx = f >= fmin & f <= fmax;
 f    = f(idx);
 w    = w(idx);
 Gexp = Gexp(idx,:);
+coh_trim  = transpose(coh(:,idx));
 
 % Initial parameter guess
 m1 = 0.5;
 m2 = 0.5;
-J0 = 2e-4;
-k_belt = 1e7;
-k_leaf = 5e3;
-c_belt = 0.01;
-c_leaf = 0.01;
+J0 = 3e-4;
+k_b = 5e5;
+k_l = 5e3;
+c_b = 10;
+c_l = 5;
 
 % Normalisation definitions
 scale.m  = 1;        % kg
-scale.k  = 1e7;      % N/m
+scale.k  = 1e4;      % N/m
 scale.w  = sqrt(scale.k/scale.m);
-scale.c  = 2 * scale.m * scale.w;        % Ns/m
+scale.c  = 1e1;        % Ns/m
 scale.J  = 1e-4;
 
 % Normalisation
 w_n = w / scale.w;
-theta_n = [m1/scale.m, m2/scale.m, J0/scale.J, k_belt/scale.k, c_belt/scale.c, k_leaf/scale.k, c_leaf/scale.c ];
-lb = [0/scale.m, 0.01/scale.m, 1e-5/scale.J, 1e2/scale.k, 0, 1e3/scale.k, 0 ];
-ub = [10/scale.m, 10/scale.m, 1e-2/scale.J, inf/scale.k, 1e3/scale.c, 1e6/scale.k, 1e3/scale.c ];
+theta_n = [m1/scale.m, m2/scale.m, J0/scale.J, k_b/scale.k, k_l/scale.k, c_b/scale.c, c_l/scale.c ];
+lb = [0.1/scale.m, 0.1/scale.m, 0/scale.J, 1e2/scale.k, 1e2/scale.k, 0/scale.c, 0/scale.c ];
+ub = [10/scale.m, 10/scale.m, 1/scale.J, 1e7/scale.k, 1e7/scale.k, 1e3/scale.c, 1e3/scale.c ]; 
 
 % Optimization settings
 opts = optimoptions('lsqnonlin', ...
     'Display','iter', ...
     'MaxIterations',1000, ...
-    'FunctionTolerance',1e-20, ...
-    'StepTolerance',1e-20, ...
-    'TypicalX', theta_n, ...
+    'FunctionTolerance',1e-12, ...
+    'StepTolerance',1e-12, ...
     'FiniteDifferenceStepSize', 0.01);
 
 % Run fit
@@ -119,8 +125,8 @@ disp(theta_hat)
 Gfit = frf_model(theta_hat);
 
 % Show found thetas
-names = {'m1','m2','J0','k_belt','c_belt','k_leaf','c_leaf'};
-theta_phys = theta_hat .* [ scale.m, scale.m, scale.J, scale.k, scale.c, scale.k, scale.c];
+names = {'m1','m2','J0','k_b','k_l','c_b','c_l'};
+theta_phys = theta_hat .* [ scale.m, scale.m, scale.J, scale.k, scale.k, scale.c, scale.c ];
 
 fprintf('\nFitted physical parameters:\n');
 for i = 1:numel(theta_phys)
@@ -135,22 +141,22 @@ title('Initial value FRF')
 subplot(2,2,1)
 semilogx(f, 20*log10(abs(Gexp(:,1))), f, 20*log10(abs(G0(:,1))));
 grid on
-legend('x1 - meas','x1 - init')
+legend('x1 - meas','x1 - init', 'Location', 'best')
 xlabel('Frequency [Hz]')
 subplot(2,2,2)
 semilogx(f, 20*log10(abs(Gexp(:,2))), f, 20*log10(abs(G0(:,2))));
 grid on
-legend('x2 - meas', 'x2 - init')
+legend('x2 - meas', 'x2 - init', 'Location', 'best')
 xlabel('Frequency [Hz]')
 subplot(2,2,3)
 semilogx(f, wrapTo180(unwrap(angle(Gexp(:,1)))*180/pi),f, wrapTo180(unwrap(angle(G0(:,1)))*180/pi));
 grid on
-legend('x1 - meas','x1 - init')
+legend('x1 - meas','x1 - init', 'Location', 'best')
 xlabel('Frequency [Hz]')
 subplot(2,2,4)
 semilogx(f, wrapTo180(unwrap(angle(Gexp(:,2)))*180/pi),f, wrapTo180(unwrap(angle(G0(:,2)))*180/pi));
 grid on
-legend('x2 - meas', 'x2 - init')
+legend('x2 - meas', 'x2 - init', 'Location', 'best')
 xlabel('Frequency [Hz]')
 
 % Plot fitted results
@@ -160,51 +166,60 @@ title('Fitted values FRF')
 subplot(2,2,1)
 semilogx(f, 20*log10(abs(Gexp(:,1))), f, 20*log10(abs(Gfit(:,1))));
 grid on
-legend('x1 - meas','x1 - fit')
+legend('x1 - meas','x1 - fit', 'Location', 'best')
 xlabel('Frequency [Hz]')
+ylabel('Magnitude [dB]')
+title('x1/tau')
 subplot(2,2,2)
 semilogx(f, 20*log10(abs(Gexp(:,2))), f, 20*log10(abs(Gfit(:,2))));
 grid on
-legend('x2 - meas', 'x2 - fit')
+legend('x2 - meas', 'x2 - fit', 'Location', 'best')
 xlabel('Frequency [Hz]')
+ylabel('Magnitude [dB]')
+title('x2/tau')
 subplot(2,2,3)
 semilogx(f, wrapTo180(unwrap(angle(Gexp(:,1)))*180/pi),f, wrapTo180(unwrap(angle(Gfit(:,1)))*180/pi));
 grid on
-legend('x1 - meas','x1 - fit')
+legend('x1 - meas','x1 - fit', 'Location', 'best')
 xlabel('Frequency [Hz]')
+ylabel('Magnitude [deg]')
+title('x1/tau')
 subplot(2,2,4)
 semilogx(f, wrapTo180(unwrap(angle(Gexp(:,2)))*180/pi), f, wrapTo180(unwrap(angle(Gfit(:,2)))*180/pi));
 grid on
-legend('x2 - meas', 'x2 - fit')
+legend('x2 - meas', 'x2 - fit', 'Location', 'best')
 xlabel('Frequency [Hz]')
+ylabel('Magnitude [deg]')
+title('x2/tau')
 
 % Functions
 function r = residual(theta)
 
     % Pull workspace variables
-    w    = evalin('base','w');
     Gexp = evalin('base','Gexp');
+    coh = evalin('base', 'coh_trim');
 
     Gmod = frf_model(theta);
 
-    % Frequency-dependent weighting
-    W = ones(size(Gmod));
+    % Coherence-dependent weighting
+    epsc = 0.05;
+    coh_adj = max(coh, epsc);
+    
+    Wmag   = 1    * coh_adj.^1.0;
+    Wphase = 0.2  * coh_adj.^0.2;      
 
-    mag_mod = 20*log10(abs(Gmod));
-    mag_exp = 20*log10(abs(Gexp));
+    mag_mod   = 20*log10(abs(Gmod));
+    mag_exp   = 20*log10(abs(Gexp));
     phase_mod = angle(Gmod);
     phase_exp = angle(Gexp);
     
     phase_diff = mod(phase_mod - phase_exp + pi, 2*pi) - pi;
 
-    phase_weight = 0.5;
-    
-    % Residual vector
     r = [
-        (mag_mod(:,1) - mag_exp(:,1)) .* W(:,1);
-        phase_weight * phase_diff(:,1) .* W(:,1);
-        (mag_mod(:,2) - mag_exp(:,2)) .* W(:,2);
-        phase_weight * phase_diff(:,2) .* W(:,2);
+        (mag_mod(:,1) - mag_exp(:,1)) .* Wmag(:,1);
+        phase_diff(:,1) .* Wphase(:,1);
+        (mag_mod(:,2) - mag_exp(:,2)) .* Wmag(:,2);
+        phase_diff(:,2) .* Wphase(:,2);
     ];
 end
 
@@ -221,24 +236,24 @@ function G = frf_model(theta)
     m2 = theta(2) * scale.m;
     J0 = theta(3) * scale.J;
 
-    k_belt = theta(4) * scale.k;
-    c_belt = theta(5) * scale.c;
-
-    k_leaf = theta(6) * scale.k;
-    c_leaf = theta(7) * scale.c;
-
-    % Matrices
-    M = diag([J0 m1 m2]);
-   
-    K = [ k_belt*r^2,  -k_belt*r,        0;
-         -k_belt*r,     k_belt+k_leaf,  -k_leaf;
-          0,           -k_leaf,          k_leaf ];
-
-    C = [ c_belt*r^2,  -c_belt*r,        0;
-         -c_belt*r,     c_belt+c_leaf,  -c_leaf;
-          0,           -c_leaf,          c_leaf ];
+    k_b = theta(4) * scale.k;
+    k_l = theta(5) * scale.k;
     
-    B = [ 1; 0; 0 ];
+    c_b = theta(6) * scale.c;
+    c_l = theta(7) * scale.c;
+    
+    % Matrices
+    M = diag([ J0/r^2, m1, m2 ]);
+    
+    K = [ k_b  -k_b          0                  
+         -k_b   k_b + k_l   -k_l
+          0    -k_l          k_l ];
+    
+    C = [ c_b  -c_b          0                  
+         -c_b   c_b + c_l   -c_l
+          0    -c_l          c_l ];
+    
+    B = [ 1/(2*r); 0; 0 ];
 
     n = length(w_n);
     G = zeros(n,2);
@@ -247,7 +262,7 @@ function G = frf_model(theta)
         w = w_n(i)*scale.w;
         D = -w^2*M + 1i*w*C + K;
         x = D\B;
-        G(i,1) = x(2);
+        G(i,1) = x(1);
         G(i,2) = x(3);
     end
 end
