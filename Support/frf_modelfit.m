@@ -166,10 +166,10 @@ title('Fitted values FRF')
 subplot(2,2,1)
 semilogx(f, 20*log10(abs(Gexp(:,1))), f, 20*log10(abs(Gfit(:,1))));
 grid on
-legend('x1 - meas','x1 - fit', 'Location', 'best')
+legend('y - meas','y - fit', 'Location', 'best')
 xlabel('Frequency [Hz]')
 ylabel('Magnitude [dB]')
-title('x1/tau')
+title('y/tau')
 subplot(2,2,2)
 semilogx(f, 20*log10(abs(Gexp(:,2))), f, 20*log10(abs(Gfit(:,2))));
 grid on
@@ -180,16 +180,16 @@ title('x2/tau')
 subplot(2,2,3)
 semilogx(f, wrapTo180(unwrap(angle(Gexp(:,1)))*180/pi),f, wrapTo180(unwrap(angle(Gfit(:,1)))*180/pi));
 grid on
-legend('x1 - meas','x1 - fit', 'Location', 'best')
+legend('y - meas','y - fit', 'Location', 'best')
 xlabel('Frequency [Hz]')
-ylabel('Magnitude [deg]')
-title('x1/tau')
+ylabel('Phase [deg]')
+title('y/tau')
 subplot(2,2,4)
 semilogx(f, wrapTo180(unwrap(angle(Gexp(:,2)))*180/pi), f, wrapTo180(unwrap(angle(Gfit(:,2)))*180/pi));
 grid on
 legend('x2 - meas', 'x2 - fit', 'Location', 'best')
 xlabel('Frequency [Hz]')
-ylabel('Magnitude [deg]')
+ylabel('Phase [deg]')
 title('x2/tau')
 
 % Functions
@@ -225,7 +225,7 @@ end
 
 function G = frf_model(theta)
 
-    % Pull constants
+    % Pull constants 
     w_n = evalin('base','w_n');
     r   = evalin('base','r');
 
@@ -243,17 +243,17 @@ function G = frf_model(theta)
     c_l = theta(7) * scale.c;
     
     % Matrices
-    M = diag([ J0/r^2, m1, m2 ]);
+    M = diag([ J0/r, m1, m2 ]);
     
-    K = [ k_b  -k_b          0                  
+    K = [ k_b*r  -k_b*r          0                  
          -k_b   k_b + k_l   -k_l
           0    -k_l          k_l ];
     
-    C = [ c_b  -c_b          0                  
+    C = [ c_b*r  -c_b*r          0                  
          -c_b   c_b + c_l   -c_l
           0    -c_l          c_l ];
     
-    B = [ 1/(2*r); 0; 0 ];
+    B = [ 1; 0; 0 ];
 
     n = length(w_n);
     G = zeros(n,2);
