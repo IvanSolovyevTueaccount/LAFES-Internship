@@ -18,7 +18,7 @@ struct IMUPacket {
 IMUPacket pkt;
 
 void setup() {
-  Serial.begin(460800);
+  Serial.begin(500000);
   Wire.begin();
   Wire.setClock(400000);  // Fast I2C
 
@@ -31,6 +31,11 @@ void setup() {
     Serial.println(err);
     while (1);
   }
+  
+  // ---- Serial Plotter header ----
+  Serial.println(
+    "ax,ay,az,gx,gy,gz"
+  );
 }
 
 void loop() {
@@ -39,19 +44,12 @@ void loop() {
   imu.getAccel(&accel);
   imu.getGyro(&gyro);
 
-  // Fill packet
-  pkt.ax = accel.accelX;
-  pkt.ay = accel.accelY;
-  pkt.az = accel.accelZ;
-  pkt.gx = gyro.gyroX;
-  pkt.gy = gyro.gyroY;
-  pkt.gz = gyro.gyroZ;
+  Serial.print(accel.accelX); Serial.print(',');
+  Serial.print(accel.accelY); Serial.print(',');
+  Serial.print(accel.accelZ); Serial.print(',');
+  Serial.print(gyro.gyroX);   Serial.print(',');
+  Serial.print(gyro.gyroY);   Serial.print(',');
+  Serial.println(gyro.gyroZ);
 
-  // Send sync bytes + packet
-  Serial.write(SYNC1);
-  Serial.write(SYNC2);
-  Serial.write((uint8_t*)&pkt, sizeof(pkt));
-
-  // Wait ~1.25 ms → 800 Hz
-  delayMicroseconds(1250);
+  delayMicroseconds(1000);
 }
