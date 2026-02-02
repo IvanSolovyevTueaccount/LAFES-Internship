@@ -1,11 +1,12 @@
 % load data
 load("input.mat")
+load("torque.mat")
 load("position1.mat")
 load("position2.mat")
 
 % pull data
 t = input(1,:); 
-u = input(2,:);
+u = input(2,:) - torque(2,:);
 x1 = position1(2,:);
 x2 = position2(2,:);
 
