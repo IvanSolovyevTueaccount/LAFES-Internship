@@ -1,26 +1,26 @@
 clear; clc;
 
-m1 = 0.366;          
-m2 = 0.734;          
-k1 = 6e5;        
-c1 = 6.5;        
-k2 = 7e3;         
-c2 = 10;         
-J0  = 4.2214e-04;      
+m1 = 0.452;          
+m2 = 0.717;          
+k1 = 5.4e5;        
+c1 = 5.3745;        
+k2 = 5.82e3;         
+c2 = 1.585;         
+J0  = 3.42e-04;      
 r  = 0.04;         
 
 
 M = [ m1      0        0;
       0       m2       0;
-      0       0   J0/r^2 ];
+      0       0   J0/r ];
 
-C = [ c1+c2   -c2    -c1;
+C = [ c1+c2   -c2    -c1;      %change this
      -c2      c2      0;
-     -c1      0       c1 ];
+     -c1*r      0       c1*r ];
 
-K = [ k1+k2   -k2    -k1;
+K = [ k1+k2   -k2    -k1;    %change this
      -k2      k2      0;
-     -k1      0       k1 ];
+     -k1*r      0       k1*r ];
 
 
 B = [ 0;
@@ -28,13 +28,18 @@ B = [ 0;
       1/r ];
 
 %%
-Minv = M \ eye(3);              
 
-A = [ zeros(3)  eye(3);
-     -Minv*K   -Minv*C ];
+%Minv = M \ eye(3);            %change this  
+a1 = [C M;
+      M zeros(3)];
+b1 = [K zeros(3);
+     zeros(3) -M];
+inva = inv(a1);
+S = [0;0;1;0;0;0];
 
-Bss = [ zeros(3,1);
-        Minv*B ];
+Ass = -inva*b1; 
+
+Bss = inva*S;
 
 
 Css = [1 0 0  0 0 0;
@@ -42,13 +47,13 @@ Css = [1 0 0  0 0 0;
 
 Dss = [0; 0];
 
-sys_ss = ss(A,Bss,Css,Dss); 
-eigenvalues = eig(A);
-Obs = obsv(A, Css);
+sys_ss = ss(Ass,Bss,Css,Dss); 
+eigenvalues = eig(Ass);
+Obs = obsv(Ass, Css);
 Obsstates = rank(Obs);
-Cont = ctrb(A, Bss);
+Cont = ctrb(Ass, Bss);
 Contstates = rank(Cont);
-Uc = null(ctrb(A,Bss)');
+Uc = null(ctrb(Ass,Bss)');
 %%
 
 t = 0:0.01:2;
@@ -137,4 +142,8 @@ figure()
 bode(G1cont, G2cont); legend('x1/tau','x2/tau');
 
 %%
-sys_min = minreal(ss(A,Bss,Css,Dss));
+sys_min = minreal(ss(Ass,Bss,Css,Dss));
+step(sys_ss)
+hold on
+step(sys_min)
+legend('Full','Reduced')
