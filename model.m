@@ -44,7 +44,6 @@ Css = [1 0 0  0 0 0;
 Dss = [0; 0];
 
 sys_ss = ss(A,Bss,Css,Dss);    
-
 %%
 G = tf(sys_ss);         
 

@@ -38,6 +38,7 @@ inva = inv(a1);
 S = [0;0;1;0;0;0];
 
 Ass = -inva*b1; 
+
 Bss = inva*S;
 
 
@@ -56,11 +57,11 @@ disp(['Observable rank: ', num2str(rank_Ob)])
 
 eig_orig = eig(Ass); 
 
-zeta = 0.009;       % damping ratio
+zeta = 0.7;       % damping ratio
 wn = 12;           % natural frequency (rad/s)
 pole1 = -zeta*wn + wn*sqrt(1-zeta^2)*1i;
 pole2 = -zeta*wn - wn*sqrt(1-zeta^2)*1i;
-poles_ctrl = [pole1 pole2 -0.005 -0.001];  
+poles_ctrl = [pole1 pole2 -1 -2];  
 
 poles_unctrl = eig_orig(5:6);    
 
@@ -68,11 +69,12 @@ poles_ctrl_col = poles_ctrl(:);
 
 poles_all = [poles_ctrl_col; poles_unctrl];  
 
-Knew = place(Ass, Bss, poles_all);
+K = acker(Ass, Bss, poles_all);
+
 
 
 %% Closed-loop system
-Acl = Ass - Bss*Knew;
+Acl = Ass - Bss*K;
 
 % Check eigenvalues
 eig_Acl = eig(Acl);
@@ -87,12 +89,12 @@ figure;
 plot(t,y)
 xlabel('Time (s)')
 ylabel('Outputs')
-title('Open-loop response')
+title('Closed-loop response with state feedback')
 legend('x_1','x_2')
 grid on
 %% Simulation example
 t = 0:0.001:2;  
-x0 = [0; 0; 0; 0; 0; 0];
+x0 = [1e-; -1e-3; 5e-3; 0.05; -0.03; 1.0];
 % Closed-loop simulation
 [y,t,x] = lsim(ss(Acl,Bss,Css,Dss),zeros(size(t)),t,x0);
 figure;
@@ -102,8 +104,3 @@ ylabel('Outputs')
 title('Closed-loop response with state feedback')
 legend('x_1','x_2')
 grid on
-
-%%
-Acl = Ass - Bss*Knew;
-sys_cl = ss(Acl, Bss, Css, Dss);
-Gcl = tf(sys_cl);
