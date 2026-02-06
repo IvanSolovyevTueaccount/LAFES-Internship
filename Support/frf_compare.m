@@ -21,52 +21,11 @@ u  = u(idx_start:end);
 x1 = x1(idx_start:end);
 x2 = x2(idx_start:end);
 
-% time window for pwelch
-nfft_d = 2^nextpow2(length(u)/2^5);
-noverlap_d = 0.5*nfft_d;
-window_d = hann(nfft_d);
+% Time delay correction
+Nd_x1 = 5;   % delay of motor encoder [samples]
+Nd_x2 = 5;   % delay of linear encoder [samples]
 
-% input PSD
-[Suu_d,f_d] = pwelch(u, window_d, noverlap_d, nfft_d, fs);
-
-% cross PSDs
-[Sx1u,~] = cpsd(x1, u, window_d, noverlap_d, nfft_d, fs);
-[Sx2u,~] = cpsd(x2, u, window_d, noverlap_d, nfft_d, fs);
-
-% output PSDs (for coherence)
-[Sx1x1,~] = pwelch(x1, window_d, noverlap_d, nfft_d, fs);
-[Sx2x2,~] = pwelch(x2, window_d, noverlap_d, nfft_d, fs);
-
-% FRFs
-Gx1 = Sx1u ./ Suu_d;
-Gx2 = Sx2u ./ Suu_d;
-
-% coherence
-coh_x1 = abs(Sx1u).^2 ./ (Suu_d .* Sx1x1);
-coh_x2 = abs(Sx2u).^2 ./ (Suu_d .* Sx2x2);
-
-% frequency range where delay dominates (adjust if needed)
-f_d_min = 50; f_d_max = 70; coh_lim = 0.1;
-idx1 = f_d > f_d_min & f_d < f_d_max & coh_x1 > coh_lim;
-idx2 = f_d > f_d_min & f_d < f_d_max & coh_x2 > coh_lim;
-
-% phase slope to delay
-w = 2*pi*f_d;
-
-p1 = polyfit(w(idx1), unwrap(angle(Gx1(idx1))), 1);
-p2 = polyfit(w(idx2), unwrap(angle(Gx2(idx2))), 1);
-
-tau_x1 = -p1(1);   % seconds
-tau_x2 = -p2(1);   % seconds
-
-Nd_x1 = round(tau_x1 * fs);
-Nd_x2 = round(tau_x2 * fs);
-
-fprintf('Estimated delays: x1 = %d samples, x2 = %d samples\n', Nd_x1, Nd_x2);
-
-Nd_x1 = max(0, Nd_x1); Nd_x2 = max(0, Nd_x2);
-
-% Apply delays
+% Apply delays independently
 x1 = x1(Nd_x1+1:end);
 x2 = x2(Nd_x2+1:end);
 
@@ -108,7 +67,7 @@ else
     frfLabel = answer{1};
 end
 
-outputNames = {'x1','x2','x2 - x1'};
+outputNames = {'x_{pulley}','x_2','x_2 - x_{pulley}'};
 
 for k = 1:nOutputs
     figure(10+k);
