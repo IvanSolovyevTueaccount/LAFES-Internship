@@ -84,16 +84,16 @@ idx = f >= fmin & f <= fmax;
 f    = f(idx);
 w    = w(idx);
 Gexp = Gexp(idx,:);
-coh_trim  = transpose(coh(:,idx));
+coh_trim  = transpose(coh(1:2,idx));
 
 % Initial parameter guess
 m1 = 0.5;
-m2 = 0.5;
-J0 = 3e-4;
-k_b = 5e5;
-k_l = 5e3;
+m2 = 1;
+J0 = 1e-3;
+k_b = 1e6;
+k_l = 1e4;
 c_b = 10;
-c_l = 5;
+c_l = 1;
 
 % Normalisation definitions
 scale.m  = 1;        % kg
@@ -105,16 +105,17 @@ scale.J  = 1e-4;
 % Normalisation
 w_n = w / scale.w;
 theta_n = [m1/scale.m, m2/scale.m, J0/scale.J, k_b/scale.k, k_l/scale.k, c_b/scale.c, c_l/scale.c ];
-lb = [0.1/scale.m, 0.1/scale.m, 0/scale.J, 1e2/scale.k, 1e2/scale.k, 0/scale.c, 0/scale.c ];
-ub = [10/scale.m, 10/scale.m, 1/scale.J, 1e7/scale.k, 1e7/scale.k, 1e3/scale.c, 1e3/scale.c ]; 
+lb = [0.1/scale.m, 0.5/scale.m, 0/scale.J, 1e5/scale.k, 1e3/scale.k, 0/scale.c, 0/scale.c ];
+ub = [0.5/scale.m, 5/scale.m, 1e-2/scale.J, 1e7/scale.k, 1e5/scale.k, 1e3/scale.c, 1e3/scale.c ]; 
 
 % Optimization settings
 opts = optimoptions('lsqnonlin', ...
     'Display','iter', ...
     'MaxIterations',1000, ...
+    'MaxFunctionEvaluations', 1e3, ...
     'FunctionTolerance',1e-12, ...
     'StepTolerance',1e-12, ...
-    'FiniteDifferenceStepSize', 0.01);
+    'FiniteDifferenceStepSize', 0.1);
 
 % Run fit
 theta_hat = lsqnonlin(@residual, theta_n, lb, ub, opts);
@@ -167,60 +168,50 @@ title('Fitted values FRF')
 subplot(2,2,1)
 semilogx(f, 20*log10(abs(Gexp(:,1))), f, 20*log10(abs(Gfit(:,1))));
 grid on
-legend('y - meas','y - fit', 'Location', 'best')
-xlabel('Frequency [Hz]')
+legend('x_{pulley} - meas','x_{pulley} - fit', 'Location', 'best')
 ylabel('Magnitude [dB]')
-title('y/tau')
+title('x_{pulley}/tau')
 subplot(2,2,2)
 semilogx(f, 20*log10(abs(Gexp(:,2))), f, 20*log10(abs(Gfit(:,2))));
 grid on
-legend('x2 - meas', 'x2 - fit', 'Location', 'best')
-xlabel('Frequency [Hz]')
+legend('x_2 - meas', 'x_2 - fit', 'Location', 'best')
 ylabel('Magnitude [dB]')
-title('x2/tau')
+title('x_2/tau')
 subplot(2,2,3)
 semilogx(f, wrapTo180(unwrap(angle(Gexp(:,1)))*180/pi),f, wrapTo180(unwrap(angle(Gfit(:,1)))*180/pi));
 grid on
-legend('y - meas','y - fit', 'Location', 'best')
+legend('x_{pulley} - meas','x_{pulley} - fit', 'Location', 'best')
 xlabel('Frequency [Hz]')
 ylabel('Phase [deg]')
-title('y/tau')
+title('x_{pulley}/tau')
 subplot(2,2,4)
 semilogx(f, wrapTo180(unwrap(angle(Gexp(:,2)))*180/pi), f, wrapTo180(unwrap(angle(Gfit(:,2)))*180/pi));
 grid on
-legend('x2 - meas', 'x2 - fit', 'Location', 'best')
+legend('x_2 - meas', 'x_2 - fit', 'Location', 'best')
 xlabel('Frequency [Hz]')
 ylabel('Phase [deg]')
-title('x2/tau')
+title('x_2/tau')
 
 % Functions
 function r = residual(theta)
-
-    % Pull workspace variables
     Gexp = evalin('base','Gexp');
-    coh = evalin('base', 'coh_trim');
-
+    coh  = evalin('base','coh_trim');
+    
     Gmod = frf_model(theta);
-
-    % Coherence-dependent weighting
-    epsc = 0.05;
-    coh_adj = max(coh, epsc);
     
-    Wmag   = 1    * coh_adj.^1.0;
-    Wphase = 0.2  * coh_adj.^0.2;      
+    Grel = (Gmod - Gexp) ./ (abs(Gexp) + 1e-6);
 
-    mag_mod   = 20*log10(abs(Gmod));
-    mag_exp   = 20*log10(abs(Gexp));
-    phase_mod = angle(Gmod);
-    phase_exp = angle(Gexp);
+    epsc = 0.01;
+    W = max(coh.^0.8, epsc);        % coherence-based weighting
+
+    W(:,1) = W(:,1);
+    W(:,2) = W(:,2);
     
-    phase_diff = mod(phase_mod - phase_exp + pi, 2*pi) - pi;
-
     r = [
-        (mag_mod(:,1) - mag_exp(:,1)) .* Wmag(:,1);
-        phase_diff(:,1) .* Wphase(:,1);
-        (mag_mod(:,2) - mag_exp(:,2)) .* Wmag(:,2);
-        phase_diff(:,2) .* Wphase(:,2);
+        real(W(:,1) .* Grel);
+        imag(W(:,1) .* Grel);
+        real(W(:,2) .* Grel);
+        imag(W(:,2) .* Grel);
     ];
 end
 
@@ -244,17 +235,17 @@ function G = frf_model(theta)
     c_l = theta(7) * scale.c;
     
     % Matrices
-    M = diag([ J0/r, m1, m2 ]);
+    M = diag([ J0/r^2, m1, m2 ]);
     
-    K = [ k_b*r  -k_b*r          0                  
+    K = [ k_b  -k_b          0                  
          -k_b   k_b + k_l   -k_l
           0    -k_l          k_l ];
     
-    C = [ c_b*r  -c_b*r          0                  
+    C = [ c_b  -c_b          0                  
          -c_b   c_b + c_l   -c_l
           0    -c_l          c_l ];
     
-    B = [ 1; 0; 0 ];
+    B = [ 1/r; 0; 0 ];
 
     n = length(w_n);
     G = zeros(n,2);
