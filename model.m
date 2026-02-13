@@ -60,38 +60,3 @@ G2
 
 % figure()
 % bode(G1, G2); legend('x1/tau','x2/tau');
-
-%% 
-t = 0:0.01:2;
-u = zeros(size(t));
-x0 = [0.01 0 0 0 0 0];
-Cont = ctrb(A, Bss);
-R = rank(Cont);
-Obs = obsv(A, Css);
-Ra = rank(Obs);
-
-p = [ -119+105j, -119-105j, -340, -360, -540, -560 ];
-K = place(A,Bss,p);
-
-sys_cl = ss(A-Bss*K,Bss,Css,0);
-
-
-lsim(sys_cl,u,t,x0);
-xlabel('Time (sec)')
-ylabel('Position (m)')
-%%
-G_cont = tf(sys_cl);         
-
-G_dcont = c2d(G_cont, 1/250, 'tustin')
-
-G1cont = G_cont(1);               
-G2cont = G_cont(2);               
-
-disp('Controllable G1(s) = X1(s) / tau(s):');
-G1cont
-
-disp('Controllable G2(s) = X2(s) / tau(s):');
-G2cont
-
-% figure()
-% bode(G1, G2); legend('x1/tau','x2/tau');
