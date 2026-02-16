@@ -15,6 +15,7 @@ The Linux installation and toolkit (`Dependencies/`) used to run this setup were
 ## Quick Links
 
 - [User Guide](#user-guide)
+    - [Safety](#safety)
     - [Starting the Setup](#starting-the-setup)
     - [Running the Setup](#running-the-setup)
     - [Troubleshooting](#troubleshooting)
@@ -78,9 +79,25 @@ The Dashboard provides the main user interface for operating the LAFES setup. It
 
 It displays the software state in the `State` display.
 
+## Safetly
+LAFES has a few hardware safety features. They work and/or can be used as:
+
+1. The follower mass reached too close to the rail ends.
+    - The software will call it `Out of Bounds`. Pushing the masses back in bounds **immediately** resumes operation.
+2. The follower mass hits the outer end-stops making the hardware quick-stop the motor.
+    - Turn off the Simulink and manually move the machine in bounds. 
+    - Tweak the reference signal and/or controller so this does not happen again
+    - Restart the system
+3. The system is misbehaving in any way. Unwanted resonance, overdriven torque, misread positions, etc.
+    - Hit the emergency stop button on the LAFES table. This **immediately** disables the motor driver and quick-stops the system.
+    - Turn off the Simulink, reset the system, and carefully restart.
+
 ## Starting the setup
+Before starting, make sure you understand the safety features and options of the setup. Then:
 1. Turn on the PC.
-2. Once the PC is fully booted, turn on power to the LAFES hardware.
+2. Login using the provided credentials.
+3. Once the PC is fully booted and showing its desktop, turn on power to the LAFES hardware.
+
 ### Launching the software
 1. Open a terminal on the Ubuntu desktop (`Ctrl+Alt+T`).
 2. Run the launching script with super-user privileges:
