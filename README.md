@@ -33,7 +33,7 @@ The Linux installation and toolkit (`Dependencies/`) used to run this setup were
 | `Old/` | Archived files from previous development stages. Retained for traceability and reference.|
 
 ## Simulink Architecture
-`image of simulink`
+![simulink](/Images/simulink.png)
 
 The LAFES control framework is implemented entirely in Simulink and runs in External Mode on an Ubuntu-based PC. Communication with the hardware is performed over EtherCAT using custom S-Functions derived from the Tech United RoboCup toolkit.
 
@@ -65,13 +65,19 @@ The Simulink model (`LAFES.slx`) is structured into clearly separated subsystems
 The User Guide provides step-by-step instructions for operating the LAFES setup. It covers powering the system, launching the Simulink model, configuring the dashboard, running experiments, and handling data logging and safety features.
 
 ## Dashboard
+![dashboard](/Images/dashboard.png)
+
 The Dashboard provides the main user interface for operating the LAFES setup. It allows you to:
-- **Zero positions** – Set the current position of the leader or follower mass as the zero reference before starting experiments.
-- **Enable/Disable the system** – Controls whether the hardware path is active.
-- **Select reference input** – Choose between generated reference signals or the measured leader position.
-- **Select collocation** – Choose which mass position is used by the controller and for monitoring.
-- **Apply disturbances** – Enable or disable disturbances (white noise) for testing or FRF measurements.
- 
+- **Reset Homing** - After homing is done, reset the home positions and redo automatic homing.
+- **Simulation Only** - If only running simulation, homing can be skipped using this button
+- **Reset Simulation** - Reset state positions of simulation to 0
+- **Motor Driver** – Controls whether the hardware motor driver is active if in operational state.
+- **Reference** – Choose between generated reference signals or the measured leader position.
+- **Sensed Mass** – Choose which mass position is used by the controller and for monitoring.
+- **Disturbances** – Enable or disable disturbances (white noise) for testing or FRF measurements.
+
+It displays the software state in the `State` display.
+
 ## Starting the setup
 1. Turn on the PC.
 2. Once the PC is fully booted, turn on power to the LAFES hardware.
@@ -86,11 +92,14 @@ sudo ./launch_LAFES.sh
 
 ## Running the setup
 1. To start the setup, click the **Monitor and Tune** button in the **Hardware** section in the Simulink ribbon at the top of the screen.
-2. The system will start running:
+2. The system automatically goes into a `Homing` state. Some steps are required to get the system homed and operational.
+    - Manually move the Leader against the leftmost end-stop (the one with the switch)
+    - Keep the leader there. The follower will start moving on its own. When it stops moving, the system has finished its homing and goes into its operational states.
+3. The system will start running:
     - Real system path if enabled
     - Simulated path in parallel
     - Data logging begins automatically.
-3. Check the dashboard to ensure zeroing and safety signals are correct before proceeding with experiments.
+Check the dashboard to ensure zeroing and safety signals are correct before proceeding with experiments.
 
 ## Troubleshooting
 
