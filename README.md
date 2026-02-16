@@ -47,7 +47,7 @@ The architecture runs two parallel system paths:
 2. Simulated System Path
     - Simulation Controller → Linear Transfer Function Model
 
-Both paths receive identical reference inputs, allowing direct comparison between the real system and model responses.
+> Both paths receive identical reference inputs, allowing direct comparison between the real system and model responses.
 
 ### Layout
 The Simulink model (`LAFES.slx`) is structured into clearly separated subsystems:
@@ -61,6 +61,9 @@ The Simulink model (`LAFES.slx`) is structured into clearly separated subsystems
 |**State Machine**| <ul> <li>Manages software operating states (Homing, Operational, Stopped, etc.) <li>Monitors safety signals and emergency conditions <li>Handles system enable/disable logic </ul>|
 |**Dashboard (User Interface)** | <ul> <li>Provides manual control inputs (enable, zeroing, selectors) <li>Displays current system state <li>Allows switching between input modes and disturbance settings <li>Controls operating configuration during runtime </ul>|
 |**Data Logging**| <ul> <li>Displays key signals via scopes (real vs simulated) <li>Saves runtime data to `.mat` files using `ToFile` blocks <li>Enables post-processing such as FRF analysis </ul>|
+
+<br>
+<br>
 
 # User Guide
 The User Guide provides step-by-step instructions for operating the LAFES setup. It covers powering the system, launching the Simulink model, configuring the dashboard, running experiments, and handling data logging and safety features.
@@ -93,7 +96,7 @@ LAFES has a few hardware safety features. They work and/or can be used as:
     - Turn off the Simulink, reset the system, and carefully restart.
 
 ## Starting the setup
-Before starting, make sure you understand the safety features and options of the setup. Then:
+> Before starting, make sure you understand the safety features and options of the setup.
 1. Turn on the PC.
 2. Login using the provided credentials.
 3. Once the PC is fully booted and showing its desktop, turn on power to the LAFES hardware.
